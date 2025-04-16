@@ -3,18 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 230, 230, 230; /* Lighter text for dark background */
+  --background-start-rgb: 40, 40, 45; /* Darker background */
+  --background-end-rgb: 20, 20, 25;   /* Even darker background */
+
+  /* Thematic colors (example) */
+  --primary-color: 185, 160, 110; /* Parchment/Gold */
+  --secondary-color: 160, 50, 50; /* Dark Red */
+  --border-color: 80, 80, 85;     /* Metallic border */
+  --highlight-bg: 55, 55, 60;     /* Slightly lighter bg for highlights */
 }
 
-@media (prefers-color-scheme: dark) {
+/* Example for dark mode preferences, adjust if needed */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
     --background-end-rgb: 0, 0, 0;
   }
-}
+} */
 
 body {
   color: rgb(var(--foreground-rgb));

@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    console.log('Attempting Google Sign-In with authDomain:', auth.config.authDomain);
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Exo_2 } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
-import AuthButton from "./components/AuthButton";
+import { DebugProvider } from "@/lib/contexts/DebugContext";
+import ClientLayoutWrapper from "./components/ClientLayoutWrapper";
 
 const exo2 = Exo_2({ subsets: ["latin"] });
 
@@ -20,12 +21,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${exo2.className} min-h-screen`}>
         <AuthProvider>
-          <header className="p-4 border-b border-[rgb(var(--border-color))] flex justify-end bg-[rgb(var(--background-start-rgb))] sticky top-0 z-10">
-            <AuthButton />
-          </header>
-          <main className="p-4 md:p-8">
-            {children}
-          </main>
+          <DebugProvider>
+            <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
+          </DebugProvider>
         </AuthProvider>
       </body>
     </html>

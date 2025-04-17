@@ -178,4 +178,59 @@ export interface PlayerDataResponse {
 // Type for API error responses
 export interface ApiError {
   type: string;
+}
+
+// --- Guild Related Types ---
+export interface GuildMember {
+  userId: string;
+  role: "MEMBER" | "OFFICER" | "CO_LEADER" | "LEADER";
+  level: number;
+  lastActivityOn?: string; // ISO Date string or timestamp?
+}
+
+export interface Guild {
+  guildId: string;
+  guildTag: string;
+  name: string;
+  level: number;
+  members: GuildMember[];
+  guildRaidSeasons: number[];
+}
+
+export interface GuildResponse {
+  guild: Guild;
+}
+
+// --- Guild Raid Related Types ---
+// Note: PublicHeroDetail structure seems complex, using 'any' for brevity initially
+export interface PublicHeroDetail { 
+  unitId: string;
+  power: number;
+  // machineOfWarDetails might also exist here based on schema ambiguity
+}
+
+export interface RaidEntry {
+  userId: string;
+  tier: number;
+  set: number;
+  encounterIndex: number;
+  remainingHp: number;
+  maxHp: number;
+  encounterType: "SideBoss" | "Boss";
+  unitId: string;
+  type: string; // e.g., "TervigonLeviathan"
+  rarity: Rarity;
+  damageDealt: number;
+  damageType: "Bomb" | "Battle";
+  startedOn: string; // ISO Date string or timestamp?
+  completedOn?: string;
+  heroDetails: PublicHeroDetail[];
+  machineOfWarDetails?: PublicHeroDetail; // Optional based on schema
+  globalConfigHash: string;
+}
+
+export interface GuildRaidResponse {
+  season: number;
+  seasonConfigId: string;
+  entries: RaidEntry[];
 } 

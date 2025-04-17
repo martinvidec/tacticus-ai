@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body className={`${exo2.className} min-h-screen`}>
         <AuthProvider>
           <header className="p-4 border-b border-[rgb(var(--border-color))] flex justify-end bg-[rgb(var(--background-start-rgb))] sticky top-0 z-10">

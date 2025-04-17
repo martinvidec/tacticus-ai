@@ -3,6 +3,7 @@
 // --- Primitive/Shared Types ---
 export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 export type GrandAlliance = "Imperial" | "Xenos" | "Chaos";
+export type Faction = string; // Faction seems to be just a string in the API spec
 
 // --- Player Details & MetaData ---
 export interface PlayerDetails {

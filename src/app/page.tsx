@@ -43,6 +43,43 @@ interface SortCriterion {
   direction: SortDirection;
 }
 
+// Helper function to get display string for a sort key
+const getSortValueDisplay = (unit: Unit, sortKey: SortKey | null): { label: string; value: string | number } | null => {
+    if (!sortKey || sortKey === 'name') return null; 
+
+    let label = '';
+    let value: string | number | undefined;
+
+    switch (sortKey) {
+        case 'xpLevel':
+            label = 'Lvl';
+            value = unit.xpLevel;
+            break;
+        case 'rank':
+            label = 'Rank';
+            value = unit.rank;
+            break;
+        case 'shards':
+            label = 'Shards';
+            value = unit.shards;
+            break;
+        case 'progressionIndex':
+            label = 'Stars';
+            value = unit.progressionIndex;
+            break;
+        case 'upgradesCount':
+            label = 'Upgrades';
+            value = unit.upgrades?.length ?? 0;
+            break;
+        default: return null; 
+    }
+
+    if (value !== undefined && value !== null) { 
+        return { label, value: typeof value === 'number' ? value.toLocaleString() : value };
+    }
+    return null;
+}
+
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { setLastApiResponse, setIsPopupOpen } = useDebug();
@@ -341,6 +378,13 @@ export default function Home() {
             )}
           </div>
 
+          {/* Re-add AllianceBarList here, checking for necessary data */}
+          {playerData?.player?.units && (
+            <div className="mb-6">
+               <AllianceBarList units={playerData.player.units} />
+            </div>
+          )}
+
           <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
 
           <CollapsibleSection title="Player Identification & Vitals" icon={<ShieldCheck size={20}/>}>
@@ -407,7 +451,7 @@ export default function Home() {
           </CollapsibleSection>
 
           <CollapsibleSection 
-               title={`Combat Units (${filteredAndSortedUnits.length} / ${playerData.player.units?.length ?? 0})`} 
+               title={`Combat Units (${filteredAndSortedUnits.length} / ${playerData?.player?.units?.length ?? 0})`} 
                icon={<Target size={20} />}
               >
                <Card className="mb-4 p-3 bg-[rgba(var(--background-start-rgb),0.6)] border border-[rgb(var(--border-color))] shadow-sm">
@@ -472,39 +516,56 @@ export default function Home() {
 
                <div className="space-y-2">
                     {filteredAndSortedUnits.length > 0 ? (
-                    filteredAndSortedUnits.map((unit: Unit) => (
-                     <details key={unit.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)]">
-                       <summary className="p-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-sm text-[rgb(var(--foreground-rgb),0.95)]">
-                          <span>{unit.name || unit.id} (Lvl {unit.xpLevel ?? '-'}, Rank {unit.rank ?? '-'})</span>
-                         <ChevronDown size={18} className="opacity-70" />
-                       </summary>
-                       <div className="p-3 border-t border-[rgb(var(--border-color))] space-y-1 text-xs text-[rgb(var(--foreground-rgb),0.85)]">
-                         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                             <p><strong>ID:</strong> {unit.id}</p>
-                             <p><strong>Faction:</strong> {unit.faction ?? 'N/A'}</p>
-                             <p><strong>Alliance:</strong> {unit.grandAlliance ?? 'N/A'}</p>
-                             <p><strong>XP:</strong> {unit.xp ?? 'N/A'}</p>
-                             <p><strong>Stars:</strong> {unit.progressionIndex ?? 'N/A'}</p>
-                             <p><strong>Shards:</strong> {unit.shards ?? 'N/A'}</p>
-                             <p><strong>Upgrades:</strong> {unit.upgrades?.join(', ') ?? 'None'}</p>
-                         </div>
-                          {unit.abilities && unit.abilities.length > 0 && (
-                              <div className="mt-2"><strong>Abilities:</strong>
-                                  <ul className="list-disc list-inside ml-4">
-                                  {unit.abilities.map(renderAbility)}
-                                  </ul>
-                              </div>
-                          )}
-                          {unit.items && unit.items.length > 0 && (
-                              <div className="mt-2"><strong>Wargear:</strong>
-                                  <ul className="list-disc list-inside ml-4">
-                                  {unit.items.map(renderUnitItem)}
-                                  </ul>
-                              </div>
-                          )}
-                       </div>
-                     </details>
-                   ))
+                    filteredAndSortedUnits.map((unit: Unit) => {
+                        // --- Build Dynamic Summary --- 
+                        const primarySortDisplay = getSortValueDisplay(unit, primarySort.key);
+                        const secondarySortDisplay = getSortValueDisplay(unit, secondarySort.key);
+
+                        const sortParts = [];
+                        if (primarySortDisplay) {
+                            sortParts.push(`${primarySortDisplay.label}: ${primarySortDisplay.value}`);
+                        }
+                        if (secondarySortDisplay && secondarySort.key !== primarySort.key) { 
+                            sortParts.push(`${secondarySortDisplay.label}: ${secondarySortDisplay.value}`);
+                        }
+
+                        const summaryDetails = sortParts.length > 0 ? `(${sortParts.join(', ')})` : '';
+                        // --- End Build Dynamic Summary ---
+                        
+                        return (
+                            <details key={unit.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)]">
+                                <summary className="p-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-sm text-[rgb(var(--foreground-rgb),0.95)]">
+                                    <span>{`${unit.name || unit.id} ${summaryDetails}`.trim()}</span> 
+                                    <ChevronDown size={18} className="opacity-70" />
+                                </summary>
+                                <div className="p-3 border-t border-[rgb(var(--border-color))] space-y-1 text-xs text-[rgb(var(--foreground-rgb),0.85)]">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                        <p><strong>ID:</strong> {unit.id}</p>
+                                        <p><strong>Faction:</strong> {unit.faction ?? 'N/A'}</p>
+                                        <p><strong>Alliance:</strong> {unit.grandAlliance ?? 'N/A'}</p>
+                                        <p><strong>XP:</strong> {unit.xp ?? 'N/A'}</p>
+                                        <p><strong>Stars:</strong> {unit.progressionIndex ?? 'N/A'}</p>
+                                        <p><strong>Shards:</strong> {unit.shards ?? 'N/A'}</p>
+                                        <p><strong>Upgrades:</strong> {unit.upgrades?.join(', ') ?? 'None'}</p>
+                                    </div>
+                                      {unit.abilities && unit.abilities.length > 0 && (
+                                          <div className="mt-2"><strong>Abilities:</strong>
+                                              <ul className="list-disc list-inside ml-4">
+                                              {unit.abilities.map(renderAbility)}
+                                              </ul>
+                                          </div>
+                                      )}
+                                      {unit.items && unit.items.length > 0 && (
+                                          <div className="mt-2"><strong>Wargear:</strong>
+                                              <ul className="list-disc list-inside ml-4">
+                                              {unit.items.map(renderUnitItem)}
+                                              </ul>
+                                          </div>
+                                      )}
+                                </div>
+                            </details>
+                        );
+                    })
                  ) : (
                    <p className="text-center text-sm text-[rgb(var(--foreground-rgb),0.7)] py-4">No units match the current filters.</p>
                  )}

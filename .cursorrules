@@ -24,3 +24,5 @@ There are some pre-configured APIs in this template that can be used but only if
 - Deepgram
   - src/app/api/deepgram has transcribe-audio/route.ts which is a simple API that returns the Deepgram API key to be used in the client side to transcribe audio in real-time.
   - src/lib/contexts has a DeepgramContext.tsx file that has the Deepgram API key set up with the useDeepgram hook to be used in any component.
+
+THIS IS IMPORTANT: make sure the UI feels like Warhammer 40K (styling, dialogues, messages, headers, etc...)

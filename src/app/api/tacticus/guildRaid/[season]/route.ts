@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
+import { verifyUserAndGetApiKey } from '@/lib/apiHelpers'; // Import the helper
 
 interface Params {
   season: string;
 }
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
-const TACTICUS_API_KEY = process.env.TACTICUS_API_KEY;
+// Remove static API key usage
+// const TACTICUS_API_KEY = process.env.TACTICUS_API_KEY;
 
 export async function GET(
   request: Request,
   { params }: { params: Params }
 ) {
-  // const apiKey = request.headers.get('X-API-KEY'); // No longer reading from request header
   const season = parseInt(params.season, 10);
 
   if (!TACTICUS_SERVER_URL) {
@@ -19,44 +20,53 @@ export async function GET(
     return NextResponse.json({ type: 'SERVER_CONFIG_ERROR' }, { status: 500 });
   }
 
-  if (!TACTICUS_API_KEY) {
-    console.error('TACTICUS_API_KEY is not defined in environment variables.');
-    return NextResponse.json({ type: 'SERVER_CONFIG_ERROR' }, { status: 500 });
-  }
-
-  // No longer checking for apiKey from request
-  // if (!apiKey) {
-  //   return NextResponse.json({ type: 'Missing X-API-KEY header' }, { status: 403 });
-  // }
-
+  // 1. Validate season parameter
   if (isNaN(season)) {
     return NextResponse.json({ type: 'Invalid season parameter' }, { status: 400 });
   }
 
+  // 2. Verify user and get their API key
+  const authHeader = request.headers.get('Authorization');
+  const apiKeyResult = await verifyUserAndGetApiKey(authHeader);
+
+  if ('error' in apiKeyResult) {
+    return NextResponse.json({ type: apiKeyResult.error }, { status: apiKeyResult.status });
+  }
+  // Successfully got the user-specific API key
+  const { apiKey } = apiKeyResult;
+
+  // Remove check for static API key
+  // if (!TACTICUS_API_KEY) {
+  //   console.error('TACTICUS_API_KEY is not defined in environment variables.');
+  //   return NextResponse.json({ type: 'SERVER_CONFIG_ERROR' }, { status: 500 });
+  // }
+  
   try {
+     // 3. Make the request using the user's API key
     const response = await fetch(`${TACTICUS_SERVER_URL}guildRaid/${season}`, {
       headers: {
-        'X-API-KEY': TACTICUS_API_KEY, // Use server-side key
+        'X-API-KEY': apiKey, // Use the fetched user-specific key
+        'Content-Type': 'application/json' // Good practice to include
       },
     });
 
+    // --- Response Handling (mostly unchanged) ---
     if (!response.ok) {
         let errorType = 'UNKNOWN_ERROR';
-        // Handle 404 and 403 specifically for guildRaid season endpoint as per OpenAPI spec
-        if (response.status === 404) {
-            errorType = 'NOT_FOUND';
-        } else if (response.status === 403) {
-            errorType = 'FORBIDDEN';
-        } else {
-            try {
-                const errorData = await response.json();
-                errorType = errorData.type || errorType;
-            } catch (e) {
-                // Ignore if response is not JSON
-            }
-        }
+        let errorDetails = {};
+        try {
+            errorDetails = await response.json();
+            errorType = (errorDetails as any).type || errorType;
+        } catch (e) { /* Ignore if response is not JSON */ }
+
+        // Handle 404 and 403 specifically for guildRaid season endpoint
+        if (response.status === 404) { errorType = 'NOT_FOUND'; }
+        if (response.status === 403) { errorType = 'FORBIDDEN'; } // API key might be invalid/revoked
+        
+        console.error(`Tacticus API Error (${response.status}) for /guildRaid/${season}:`, errorDetails);
         return NextResponse.json({ type: errorType }, { status: response.status });
     }
+    // --- End Response Handling ---
 
     const data = await response.json();
     return NextResponse.json(data);

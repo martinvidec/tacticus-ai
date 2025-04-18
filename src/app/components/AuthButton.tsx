@@ -1,34 +1,21 @@
 'use client';
 
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function AuthButton() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
 
   if (loading) {
-    return <div className="h-10 w-32 animate-pulse rounded bg-[rgba(var(--border-color),0.3)]"></div>;
+    return <button className="px-4 py-2 text-sm font-semibold rounded-md bg-gray-700 text-gray-400 cursor-wait">Loading...</button>;
   }
 
-  return (
-    <div>
-      {user ? (
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-[rgb(var(--foreground-rgb),0.8)]">Codex Access: {user.displayName || user.email}</span>
-          <button
-            onClick={signOut}
-            className="rounded bg-[rgb(var(--secondary-color))] px-4 py-2 text-sm text-white hover:brightness-110 transition-all duration-150 border border-red-400/50"
-          >
-            Purge Session
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={signInWithGoogle}
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition-colors duration-150 border border-blue-500/50 shadow-md"
-        >
-          ++ Authenticate via Google Relay ++
-        </button>
-      )}
-    </div>
+  return user ? (
+    <button onClick={signOut} className="px-4 py-2 text-sm font-semibold rounded-md bg-red-700 hover:bg-red-600 text-white transition-colors">
+      Sign Out
+    </button>
+  ) : (
+    <button onClick={signInWithGoogle} className="px-4 py-2 text-sm font-semibold rounded-md bg-blue-600 hover:bg-blue-500 text-white transition-colors">
+      Sign In with Google
+    </button>
   );
 } 

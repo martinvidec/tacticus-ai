@@ -5,7 +5,7 @@ import { useEffect, ReactNode } from "react";
 import AuthButton from "./AuthButton";
 import DebugPopup from "./DebugPopup";
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { SettingsIcon } from "lucide-react";
 import { Button } from "@tremor/react";
 

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { createContext, useEffect, useState } from "react";
-import { signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut } from "firebase/auth";
-import { User } from "firebase/auth";
+import React, { createContext, useEffect, useState, useContext } from "react";
+import { signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, User } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 
 interface AuthContextType {
@@ -24,8 +23,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = auth.onAuthStateChanged((userAuth) => {
+      setUser(userAuth);
       setLoading(false);
     });
 
@@ -57,4 +56,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export { AuthContext };
+export const useAuth = () => useContext(AuthContext);

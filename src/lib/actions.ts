@@ -2,17 +2,26 @@
 
 import { revalidatePath } from 'next/cache';
 import { adminDb } from './firebase/firebaseAdmin'; // Assuming adminDb is exported from here
+import { FieldValue } from 'firebase-admin/firestore'; // Import FieldValue
+
+// Helper to mask the API key
+function maskApiKey(key: string): string {
+    if (key.length > 4) {
+        return `••••••••••••${key.slice(-4)}`;
+    } 
+    return '••••'; // Mask short keys too
+}
 
 /**
  * Saves or updates the user's Tacticus API key in Firestore.
  * @param userId - The Firebase UID of the user.
  * @param apiKey - The Tacticus API key to save.
- * @returns Promise<{ success: boolean; error?: string }>
+ * @returns Promise<{ success: boolean; maskedKey?: string; error?: string }>
  */
 export async function saveUserApiKey(
   userId: string | null, 
   apiKey: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; maskedKey?: string; error?: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
   }
@@ -28,7 +37,14 @@ export async function saveUserApiKey(
     const userDocRef = adminDb.collection('users').doc(userId);
     await userDocRef.set({ tacticusApiKey: apiKey }, { merge: true });
 
-    return { success: true };
+    // Revalidate paths if needed
+    // revalidatePath('/settings'); 
+    // revalidatePath('/');
+
+    // Return success and the masked key
+    const maskedKey = maskApiKey(apiKey);
+    return { success: true, maskedKey: maskedKey };
+
   } catch (error) {
     console.error("Error saving API key:", error);
     let errorMessage = 'Failed to save API key.';
@@ -81,5 +97,48 @@ export async function getUserApiKeyStatus(
             errorMessage = error.message;
         }
         return { hasKey: false, error: errorMessage };
+    }
+}
+
+/**
+ * Deletes the user's Tacticus API key from Firestore.
+ * @param userId - The Firebase UID of the user.
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function deleteUserApiKey(
+    userId: string | null
+): Promise<{ success: boolean; error?: string }> {
+    if (!userId) {
+        return { success: false, error: 'User not authenticated.' };
+    }
+    if (!adminDb) {
+        console.error("Firebase Admin DB is not initialized for deleteUserApiKey.");
+        return { success: false, error: 'Server configuration error.' };
+    }
+
+    try {
+        const userDocRef = adminDb.collection('users').doc(userId);
+        // Use FieldValue.delete() to remove the specific field
+        await userDocRef.update({ 
+            tacticusApiKey: FieldValue.delete() 
+        });
+
+        // Optional: Revalidate paths if necessary
+        // revalidatePath('/settings');
+        // revalidatePath('/');
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting API key:", error);
+        let errorMessage = 'Failed to delete API key.';
+        // Check if the error is because the document or field doesn't exist (which is okay for delete)
+        if (error instanceof Error && (error as any).code === 5) { // Firestore error code 5 is NOT_FOUND
+            console.log(`Document or field already deleted for user ${userId}. Treating as success.`);
+            return { success: true }; 
+        }
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return { success: false, error: errorMessage };
     }
 }

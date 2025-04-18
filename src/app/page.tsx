@@ -2,18 +2,19 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { useDebug } from '@/lib/contexts/DebugContext';
 import { PlayerDataResponse, GuildResponse, GuildRaidResponse, ApiError, Unit, Inventory, Progress, CampaignProgress, CampaignLevel, UnitItem, Ability, Item, Shard, XpBook, AbilityBadge, Component, ForgeBadge, Orb, GrandAlliance, Faction, Player, GuildMember } from '@/lib/types';
 import { ChevronDown, ChevronUp, Target, ShieldCheck, Box, TrendingUp, ArrowUpDown, Filter, Users, Swords, KeyRound, AlertTriangle, ArrowUp, ArrowDown, SettingsIcon } from 'lucide-react';
-import { Select, SelectItem, MultiSelect, MultiSelectItem, Card, Title, Button, TextInput, Metric } from '@tremor/react';
+import { Select, SelectItem, MultiSelect, MultiSelectItem, Card, Title, Button, TextInput, Metric, Grid } from '@tremor/react';
 
-// Import Chart Components
+// Import Metrics using relative path from src/app/
 import PowerLevelMetric from './components/charts/PowerLevelMetric';
-import AllianceBarList from './components/charts/AllianceBarList';
 import PlayerNameMetric from './components/charts/PlayerNameMetric';
 import RaidDamageMetric from './components/charts/RaidDamageMetric';
 import RaidParticipationMetric from './components/charts/RaidParticipationMetric';
+// Other charts...
+import AllianceBarList from './components/charts/AllianceBarList';
 
 // Helper component for collapsible sections - Themed
 const CollapsibleSection: React.FC<{ title: string; icon?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => {
@@ -43,7 +44,7 @@ interface SortCriterion {
 }
 
 export default function Home() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { setLastApiResponse, setIsPopupOpen } = useDebug();
   
   // --- State for API Data --- 
@@ -128,26 +129,34 @@ export default function Home() {
       setLastApiResponse(null);
       return;
     }
-    let idToken = null;
+    
+    console.log("User authenticated, attempting data fetch...");
+    setIsFetchingData(true); 
+    setFetchError(null);
+    setPlayerData(null); 
+    setGuildData(null); 
+    setGuildRaidData(null);
+
+    let idToken: string | null = null;
     try {
       idToken = await user.getIdToken();
     } catch (error) {
       console.error("Error getting ID token:", error);
       setFetchError("Fehler beim Abrufen des Authentifizierungs-Tokens.");
-      setIsFetchingData(false); return;
+      setIsFetchingData(false); 
+      return;
     }
+
     if (!idToken) {
       console.error("Failed to get ID token, cannot fetch data.");
       setFetchError("Authentifizierungs-Token konnte nicht abgerufen werden.");
-      setIsFetchingData(false); return;
+      setIsFetchingData(false); 
+      return;
     }
-    
-    setIsFetchingData(true); setFetchError(null);
-    setPlayerData(null); setGuildData(null); setGuildRaidData(null);
-    setLastApiResponse(null);
-    
+
     let combinedError: string | null = null;
     const fetchOptions = { headers: { 'Authorization': `Bearer ${idToken}` } };
+    let apiKeyIsMissing = false;
 
     const results = await Promise.allSettled([
       fetch('/api/tacticus/player', fetchOptions),
@@ -160,58 +169,65 @@ export default function Home() {
       const endpoint = ['player', 'guild', 'guildRaid'][i];
       let errorType = `${endpoint.toUpperCase()}_FETCH_FAILED`;
       let errorData: ApiError | null = null;
+
       if (result.status === 'fulfilled') {
         const response = result.value;
         if (!response.ok) {
           try { errorData = response.status === 404 ? null : await response.json(); } catch (e) {}
-          errorType = errorData?.type || (response.status === 404 ? `${endpoint.toUpperCase()}_NOT_FOUND` : errorType);
-          if (response.status === 403 && errorType === 'API_KEY_NOT_SET') {
-            combinedError = 'API_KEY_REQUIRED';
-            setLastApiResponse({ endpoint, status: response.status, error: { type: errorType } });
-          } else if (response.status === 404) {
-            setLastApiResponse({ endpoint, status: 404, data: { message: `No data found for ${endpoint}.` } });
-            if (endpoint === 'guild') setGuildData(null);
-            if (endpoint === 'guildRaid') setGuildRaidData(null);
-          } else {
-            if (response.status === 401) errorType = 'UNAUTHORIZED';
-            setLastApiResponse({ endpoint, status: response.status, error: errorData || { type: errorType } });
-            combinedError = combinedError ? `${combinedError}; ${endpoint}: ${errorType}` : `${endpoint}: ${errorType}`;
+          errorType = errorData?.type || (response.status === 404 ? `${endpoint.toUpperCase()}_NOT_FOUND` : `${response.status}_ERROR`);
+          
+          if (response.status === 403 && errorData?.type?.includes('API Key not configured')) {
+            apiKeyIsMissing = true;
           }
+          
+          const errorMsg = `${endpoint}: ${errorType}`; 
+          combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
+          
+          if (endpoint === 'player') setPlayerData(null);
+          if (endpoint === 'guild') setGuildData(null);
+          if (endpoint === 'guildRaid') setGuildRaidData(null);
         } else {
           try {
             const data = await response.json();
             if (endpoint === 'player') setPlayerData(data as PlayerDataResponse);
             if (endpoint === 'guild') setGuildData(data as GuildResponse);
             if (endpoint === 'guildRaid') setGuildRaidData(data as GuildRaidResponse);
-            setLastApiResponse({ endpoint, data });
           } catch (e: any) {
             console.error(`Error parsing JSON for ${endpoint}:`, e);
-            combinedError = combinedError ? `${combinedError}; ${endpoint}: PARSE_ERROR` : `${endpoint}: PARSE_ERROR`;
-            setLastApiResponse({ endpoint, error: { type: 'PARSE_ERROR', reason: e.message } });
+            const errorMsg = `${endpoint}: PARSE_ERROR`;
+            combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
           }
         }
       } else {
         console.error(`Fetch error for ${endpoint} data:`, result.reason);
-        combinedError = combinedError ? `${combinedError}; ${endpoint}: FETCH_ERROR` : `${endpoint}: FETCH_ERROR`;
-        setLastApiResponse({ endpoint, error: { type: 'FETCH_ERROR', reason: result.reason?.message } });
+        const errorMsg = `${endpoint}: FETCH_ERROR`;
+        combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
       }
     }
-    if (combinedError) {
-      setFetchError(combinedError);
+    
+    if (apiKeyIsMissing) {
+        setFetchError('API_KEY_REQUIRED');
+    } else if (combinedError) {
+        setFetchError(combinedError);
+    } else {
+        setFetchError(null);
     }
     setIsFetchingData(false);
-  }, [user, setLastApiResponse]);
+  }, [user, /* setLastApiResponse */]);
 
   useEffect(() => {
-    if (!authLoading && user) { fetchAllData(); }
-    if (authLoading || !user) {
-      setPlayerData(null); setGuildData(null); setGuildRaidData(null);
-      setFetchError(null);
-      setLastApiResponse(null);
+    if (user && !authLoading) {
+       fetchAllData();
+    } else if (!user && !authLoading) {
+       setPlayerData(null);
+       setGuildData(null);
+       setGuildRaidData(null);
+       setFetchError(null);
+       setIsFetchingData(false);
     }
-  }, [user, authLoading, fetchAllData, setLastApiResponse]);
+  }, [user, authLoading, fetchAllData]);
 
-  const renderTokens = (tokenData: { current?: number; max?: number; regenDelayInSeconds?: number } | null, name: string) => {
+  const renderTokens = (tokenData: { current?: number; max?: number; regenDelayInSeconds?: number } | null | undefined, name: string) => {
     if (!tokenData) return null;
     return (
       <p className="text-sm"><strong className="text-[rgb(var(--primary-color))] font-semibold">{name} Tokens:</strong> {tokenData.current ?? '-'}/{tokenData.max ?? '-'} (Regen: {tokenData.regenDelayInSeconds ?? '-'}s)</p>
@@ -290,7 +306,7 @@ export default function Home() {
 
   if (!isFetchingData && !fetchError && !playerData) {
     return (
-      <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Data Feed Received ++</p>
+      <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Data Feed Received or Still Loading ++</p>
     );
   }
 
@@ -329,9 +345,9 @@ export default function Home() {
 
           <CollapsibleSection title="Player Identification & Vitals" icon={<ShieldCheck size={20}/>}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Designation:</strong> {playerData.player?.details?.playerName ?? 'N/A'}</div>
-              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">ID:</strong> {playerData.player?.details?.playerId ?? 'N/A'}</div>
-              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Combat Effectiveness (Power):</strong> {playerData.player?.powerLevel ?? 'N/A'}</div>
+              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Designation:</strong> {playerData.player?.details?.name ?? 'N/A'}</div>
+              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">ID (User):</strong> {user?.uid ?? 'N/A'}</div>
+              <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Combat Effectiveness (Power):</strong> {playerData.player?.details?.powerLevel?.toLocaleString() ?? 'N/A'}</div>
               {playerData.metaData && (
                   <>
                       <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Last Sync:</strong> {new Date(playerData.metaData.lastUpdatedOn * 1000).toLocaleString()}</div>
@@ -367,18 +383,18 @@ export default function Home() {
           <CollapsibleSection title="Guild Raid Intel (Current Season)" icon={<Swords size={20} />}>
                {guildRaidData ? ( 
                   <div className="space-y-1 text-sm">
-                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season/ID:</strong> {guildRaidData?.raidDefinitionId ?? 'N/A'}</p>
-                    <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Status:</strong> {guildRaidData?.status ?? 'N/A'}</p>
-                    <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Ends In:</strong> {guildRaidData?.endsIn ? new Date(guildRaidData.endsIn * 1000).toLocaleString() : 'N/A'}</p>
-                   {guildRaidData.bosses && guildRaidData.bosses.length > 0 && (
+                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season:</strong> {guildRaidData?.season ?? 'N/A'}</p>
+                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season Config ID:</strong> {guildRaidData?.seasonConfigId ?? 'N/A'}</p>
+                   {guildRaidData.entries && guildRaidData.entries.length > 0 && (
                        <details className="mt-2">
-                           <summary className="cursor-pointer font-medium text-xs">Bosses ({guildRaidData.bosses.length})</summary>
-                           <div className="space-y-1 mt-1">
-                           {guildRaidData.bosses.map(boss => (
-                               <div key={boss.bossDefinitionId} className="p-2 border border-[rgb(var(--border-color))] rounded bg-[rgba(var(--background-start-rgb),0.8)] text-xs">
-                                   <p className="font-semibold capitalize">{boss.bossDefinitionId.replace(/_/g, ' ')}</p>
-                                   <p>HP Remaining: {boss?.hpRemaining?.toLocaleString() ?? 'N/A'}</p>
-                                   <p>Level: {boss?.level ?? 'N/A'}</p>
+                           <summary className="cursor-pointer font-medium text-xs">Raid Entries ({guildRaidData.entries.length})</summary>
+                           <div className="space-y-1 mt-1 max-h-60 overflow-y-auto bg-[rgba(var(--background-start-rgb),0.8)] border border-[rgb(var(--border-color))] p-2 rounded">
+                           {guildRaidData.entries.map((entry, index) => (
+                               <div key={`${entry.userId}-${entry.unitId}-${index}`} className="p-2 border-b border-[rgba(var(--border-color),0.3)] last:border-b-0 text-xs">
+                                   <p className="font-semibold capitalize">{entry.type} ({entry.encounterType}, Tier {entry.tier})</p>
+                                   <p>HP: {entry.remainingHp.toLocaleString()}/{entry.maxHp.toLocaleString()}</p>
+                                   <p>Damage Dealt: {entry.damageDealt.toLocaleString()} ({entry.damageType})</p>
+                                   <p>Player: {entry.userId}</p>
                                </div>
                            ))}
                            </div>
@@ -469,7 +485,6 @@ export default function Home() {
                              <p><strong>Alliance:</strong> {unit.grandAlliance ?? 'N/A'}</p>
                              <p><strong>XP:</strong> {unit.xp ?? 'N/A'}</p>
                              <p><strong>Stars:</strong> {unit.progressionIndex ?? 'N/A'}</p>
-                             <p><strong>Rarity:</strong> {unit.rarity ?? 'N/A'}</p>
                              <p><strong>Shards:</strong> {unit.shards ?? 'N/A'}</p>
                              <p><strong>Upgrades:</strong> {unit.upgrades?.join(', ') ?? 'None'}</p>
                          </div>
@@ -486,12 +501,6 @@ export default function Home() {
                                   {unit.items.map(renderUnitItem)}
                                   </ul>
                               </div>
-                          )}
-                          {unit.stats && (
-                               <details className="mt-2">
-                                   <summary className="cursor-pointer font-medium text-xs">Stats</summary>
-                                   <pre className="text-xs bg-[rgba(var(--background-start-rgb),0.8)] border border-[rgb(var(--border-color))] p-2 rounded mt-1 max-h-48 overflow-auto">{JSON.stringify(unit.stats, null, 2)}</pre>
-                               </details>
                           )}
                        </div>
                      </details>

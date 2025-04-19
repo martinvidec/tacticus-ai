@@ -13,14 +13,16 @@ function maskApiKey(key: string): string {
 }
 
 /**
- * Saves or updates the user's Tacticus API key in Firestore.
+ * Saves or updates the user's Tacticus API key and associated Tacticus User ID in Firestore.
  * @param userId - The Firebase UID of the user.
  * @param apiKey - The Tacticus API key to save.
+ * @param tacticusUserId - The Tacticus User ID (UUID) extracted after validating the key.
  * @returns Promise<{ success: boolean; maskedKey?: string; error?: string }>
  */
 export async function saveUserApiKey(
   userId: string | null, 
-  apiKey: string
+  apiKey: string,
+  tacticusUserId: string | null // Added parameter
 ): Promise<{ success: boolean; maskedKey?: string; error?: string }> {
   if (!userId) {
     return { success: false, error: 'User not authenticated.' };
@@ -28,6 +30,11 @@ export async function saveUserApiKey(
   if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
     return { success: false, error: 'Invalid API key provided.' };
   }
+   if (!tacticusUserId || typeof tacticusUserId !== 'string') {
+     // Allow saving the key even if ID extraction failed (maybe log a warning)
+     console.warn(`Saving API key for user ${userId} without a valid Tacticus User ID.`);
+     // return { success: false, error: 'Invalid Tacticus User ID provided.' };
+   }
   if (!adminDb) {
     console.error("Firebase Admin DB is not initialized.");
     return { success: false, error: 'Server configuration error.' };
@@ -35,9 +42,13 @@ export async function saveUserApiKey(
 
   try {
     const userDocRef = adminDb.collection('users').doc(userId);
-    await userDocRef.set({ tacticusApiKey: apiKey }, { merge: true });
+    // Save both the key and the extracted Tacticus ID
+    await userDocRef.set({ 
+        tacticusApiKey: apiKey,
+        tacticusUserId: tacticusUserId // Store the ID
+    }, { merge: true });
 
-    // Revalidate paths if needed
+    // Revalidate paths if needed (uncomment if necessary)
     // revalidatePath('/settings'); 
     // revalidatePath('/');
 
@@ -46,7 +57,7 @@ export async function saveUserApiKey(
     return { success: true, maskedKey: maskedKey };
 
   } catch (error) {
-    console.error("Error saving API key:", error);
+    console.error("Error saving API key and/or Tacticus ID:", error);
     let errorMessage = 'Failed to save API key.';
     if (error instanceof Error) {
         errorMessage = error.message;
@@ -56,13 +67,13 @@ export async function saveUserApiKey(
 }
 
 /**
- * Retrieves the status and optionally a masked version of the user's Tacticus API key.
+ * Retrieves the status, masked key, and Tacticus User ID for the user.
  * @param userId - The Firebase UID of the user.
- * @returns Promise<{ hasKey: boolean; maskedKey?: string; error?: string }>
+ * @returns Promise<{ hasKey: boolean; maskedKey?: string; tacticusUserId?: string | null; error?: string }>
  */
 export async function getUserApiKeyStatus(
     userId: string | null
-): Promise<{ hasKey: boolean; maskedKey?: string; error?: string }> {
+): Promise<{ hasKey: boolean; maskedKey?: string; tacticusUserId?: string | null; error?: string }> {
     if (!userId) {
         return { hasKey: false, error: 'User not authenticated.' };
     }
@@ -78,18 +89,16 @@ export async function getUserApiKeyStatus(
         if (docSnap.exists) {
             const data = docSnap.data() as { [key: string]: any } | undefined;
             const apiKey = data?.tacticusApiKey;
+            const tacticusUserId = data?.tacticusUserId || null; // Get the Tacticus ID
             
-            // @ts-ignore - Linter incorrectly flags this type check
             if (apiKey && typeof apiKey === 'string') {
-                if (apiKey.length > 4) {
-                    const maskedKey = `••••••••••••${apiKey.slice(-4)}`;
-                    return { hasKey: true, maskedKey: maskedKey };
-                } else {
-                    return { hasKey: true, maskedKey: '••••' };
-                }
+                 const maskedKey = maskApiKey(apiKey);
+                 return { hasKey: true, maskedKey: maskedKey, tacticusUserId: tacticusUserId };
             }
         }
-        return { hasKey: false };
+        // If no document or no API key found, return hasKey: false, but still return tacticusUserId if it somehow exists
+        const tacticusUserIdAlone = docSnap.exists ? (docSnap.data()?.tacticusUserId || null) : null;
+        return { hasKey: false, tacticusUserId: tacticusUserIdAlone };
     } catch (error) {
         console.error("Error fetching API key status:", error);
         let errorMessage = 'Failed to fetch API key status.';
@@ -101,7 +110,7 @@ export async function getUserApiKeyStatus(
 }
 
 /**
- * Deletes the user's Tacticus API key from Firestore.
+ * Deletes the user's Tacticus API key and Tacticus User ID from Firestore.
  * @param userId - The Firebase UID of the user.
  * @returns Promise<{ success: boolean; error?: string }>
  */
@@ -118,9 +127,10 @@ export async function deleteUserApiKey(
 
     try {
         const userDocRef = adminDb.collection('users').doc(userId);
-        // Use FieldValue.delete() to remove the specific field
+        // Use FieldValue.delete() to remove the specific fields
         await userDocRef.update({ 
-            tacticusApiKey: FieldValue.delete() 
+            tacticusApiKey: FieldValue.delete(),
+            tacticusUserId: FieldValue.delete() // Also delete the Tacticus ID
         });
 
         // Optional: Revalidate paths if necessary
@@ -129,11 +139,10 @@ export async function deleteUserApiKey(
 
         return { success: true };
     } catch (error) {
-        console.error("Error deleting API key:", error);
-        let errorMessage = 'Failed to delete API key.';
-        // Check if the error is because the document or field doesn't exist (which is okay for delete)
+        console.error("Error deleting API key fields:", error);
+        let errorMessage = 'Failed to delete API key fields.';
         if (error instanceof Error && (error as any).code === 5) { // Firestore error code 5 is NOT_FOUND
-            console.log(`Document or field already deleted for user ${userId}. Treating as success.`);
+            console.log(`Document or fields already deleted for user ${userId}. Treating as success.`);
             return { success: true }; 
         }
         if (error instanceof Error) {

@@ -16,9 +16,10 @@ export default function SettingsPage() {
     const [success, setSuccess] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
-    const [keyStatus, setKeyStatus] = useState<{ hasKey: boolean; maskedKey?: string; loading: boolean; error?: string }>({ 
+    const [keyStatus, setKeyStatus] = useState<{ hasKey: boolean; maskedKey?: string; tacticusUserId?: string | null; loading: boolean; error?: string }>({ 
         hasKey: false, 
         loading: true,
+        tacticusUserId: null,
         error: undefined 
     });
 
@@ -31,11 +32,11 @@ export default function SettingsPage() {
                 })
                 .catch(err => {
                     console.error("Error fetching API key status:", err);
-                    setKeyStatus({ hasKey: false, loading: false, error: 'Could not load API key status.' });
+                    setKeyStatus({ hasKey: false, loading: false, tacticusUserId: null, error: 'Could not load API key status.' });
                 });
         }
         if (!user && !authLoading) {
-             setKeyStatus({ hasKey: false, loading: false, error: undefined });
+             setKeyStatus({ hasKey: false, loading: false, tacticusUserId: null, error: undefined });
         }
     }, [user, authLoading]);
 
@@ -51,7 +52,7 @@ export default function SettingsPage() {
         }
 
         if (!apiKey.trim()) {
-            setError("API Key cannot be empty if you intend to save/update.");
+            setError("API Key cannot be empty.");
             return;
         }
 
@@ -60,23 +61,63 @@ export default function SettingsPage() {
                 setError("User session expired. Please log in again.");
                 return;
             }
+            let extractedTacticusId: string | null = null;
+            
+            // --- Step 1: Validate Key and Extract ID via API Route ---
+            setSuccess("Validating API Key...");
+            setError(null);
             try {
-                const result = await saveUserApiKey(user.uid, apiKey);
+                const validationResponse = await fetch('/api/tacticus/validateKeyAndGetId', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey: apiKey.trim() })
+                });
+
+                const validationResult = await validationResponse.json();
+
+                if (!validationResponse.ok || !validationResult.success) {
+                    setError(validationResult.error || 'API Key validation failed.');
+                    setSuccess(null);
+                    return; // Stop if validation fails
+                }
+                
+                // Validation successful
+                extractedTacticusId = validationResult.tacticusUserId || null;
+                if (extractedTacticusId) {
+                    setSuccess("API Key validated successfully. Tacticus ID found.");
+                } else {
+                    // Key is valid, but ID couldn't be extracted (e.g., no raid entries for test season)
+                    setSuccess("API Key validated successfully, but Tacticus ID could not be automatically linked yet."); 
+                    console.warn("Tacticus ID not extracted during validation, will be saved as null.");
+                }
+
+            } catch (validationError) {
+                console.error("Error calling validation API:", validationError);
+                setError("Failed to contact validation service.");
+                setSuccess(null);
+                return;
+            }
+            // --- End Validation Step --- 
+
+            // --- Step 2: Save Key and Extracted ID --- 
+            setSuccess("Saving data...");
+            try {
+                // Pass the potentially null extracted ID
+                const result = await saveUserApiKey(user.uid, apiKey.trim(), extractedTacticusId); 
                 if (result.success && result.maskedKey) {
-                    setSuccess("API Key saved successfully!");
+                    setSuccess("API Key saved and linked successfully!");
                     setApiKey('');
-                    setKeyStatus({ 
-                        hasKey: true, 
-                        maskedKey: result.maskedKey, 
-                        loading: false, 
-                        error: undefined 
-                    });
+                    // Fetch updated status after save
+                    const updatedStatus = await getUserApiKeyStatus(user.uid);
+                    setKeyStatus({ ...updatedStatus, loading: false }); 
                 } else {
                     setError(result.error || "Failed to save API key.");
-                    setKeyStatus(prev => ({...prev, loading: false}));
+                    setSuccess(null); // Clear intermediate success message
+                    setKeyStatus(prev => ({...prev, loading: false})); 
                 }
             } catch (err) {
                 setError("An unexpected error occurred while saving.");
+                setSuccess(null); // Clear intermediate success message
                 console.error("Settings save error:", err);
                 setKeyStatus(prev => ({...prev, loading: false}));
             }
@@ -171,7 +212,7 @@ export default function SettingsPage() {
                 {keyStatus.hasKey && keyStatus.maskedKey && (
                      <div className="mb-4 flex items-center p-3 text-sm text-blue-300 bg-blue-900/30 border border-blue-700 rounded-md">
                         <Info className="w-5 h-5 mr-2 flex-shrink-0" />
-                        <span>API Key configured: {keyStatus.maskedKey}</span>
+                        <span>API Key configured: {keyStatus.maskedKey} {keyStatus.tacticusUserId ? `(ID: ${keyStatus.tacticusUserId.substring(0,4)}...)` : '(Tacticus User ID not linked)'}</span>
                     </div>
                 )}
 

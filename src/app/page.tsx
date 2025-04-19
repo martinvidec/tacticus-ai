@@ -15,6 +15,7 @@ import RaidDamageMetric from './components/charts/RaidDamageMetric';
 import RaidParticipationMetric from './components/charts/RaidParticipationMetric';
 // Other charts...
 import AllianceBarList from './components/charts/AllianceBarList';
+import BossCompositionPerformance from './components/charts/BossCompositionPerformance';
 
 // Helper component for collapsible sections - Themed
 const CollapsibleSection: React.FC<{ title: string; icon?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => {
@@ -25,7 +26,7 @@ const CollapsibleSection: React.FC<{ title: string; icon?: React.ReactNode; chil
         <div className="flex items-center space-x-2">
           {icon}
           <span>{title}</span>
-        </div>
+      </div>
         {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </summary>
       <div className="p-3 md:p-4 border-t border-[rgb(var(--border-color))] text-[rgb(var(--foreground-rgb),0.9)]">
@@ -84,12 +85,16 @@ export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { setLastApiResponse, setIsPopupOpen } = useDebug();
   
-  // --- State for API Data --- 
+  // States for data
   const [playerData, setPlayerData] = useState<PlayerDataResponse | null>(null);
   const [guildData, setGuildData] = useState<GuildResponse | null>(null);
-  const [guildRaidData, setGuildRaidData] = useState<GuildRaidResponse | null>(null);
-  const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
+  const [allSeasonsRaidData, setAllSeasonsRaidData] = useState<Record<number, GuildRaidResponse>>({});
+  const [isFetchingBaseData, setIsFetchingBaseData] = useState<boolean>(false);
+  const [isFetchingSeasonData, setIsFetchingSeasonData] = useState<boolean>(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
+  // State for selected season view
+  const [selectedSeason, setSelectedSeason] = useState<number | 'all'>('all');
 
   // --- State for Sorting & Filtering --- 
   const [primarySort, setPrimarySort] = useState<SortCriterion>({ key: 'xpLevel', direction: 'desc' });
@@ -158,111 +163,189 @@ export default function Home() {
     return { filteredAndSortedUnits: sorted, availableAlliances: allAlliances, availableFactions: allFactions };
   }, [playerData, primarySort, secondarySort, selectedAlliances, selectedFactions]);
 
-  // --- Fetch Logic --- 
-  const fetchAllData = useCallback(async () => {
-    if (!user) {
-      setPlayerData(null); setGuildData(null); setGuildRaidData(null);
-      setFetchError(null);
-      setLastApiResponse(null);
-      return;
-    }
-    
-    console.log("User authenticated, attempting data fetch...");
-    setIsFetchingData(true); 
-    setFetchError(null);
-    setPlayerData(null); 
-    setGuildData(null); 
-    setGuildRaidData(null);
-
-    let idToken: string | null = null;
-    try {
-      idToken = await user.getIdToken();
-    } catch (error) {
-      console.error("Error getting ID token:", error);
-      setFetchError("Fehler beim Abrufen des Authentifizierungs-Tokens.");
-      setIsFetchingData(false); 
-      return;
-    }
-
-    if (!idToken) {
-      console.error("Failed to get ID token, cannot fetch data.");
-      setFetchError("Authentifizierungs-Token konnte nicht abgerufen werden.");
-      setIsFetchingData(false); 
-      return;
-    }
-
-    let combinedError: string | null = null;
-    const fetchOptions = { headers: { 'Authorization': `Bearer ${idToken}` } };
-    let apiKeyIsMissing = false;
-
-    const results = await Promise.allSettled([
-      fetch('/api/tacticus/player', fetchOptions),
-      fetch('/api/tacticus/guild', fetchOptions),
-      fetch('/api/tacticus/guildRaid', fetchOptions)
-    ]);
-
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const endpoint = ['player', 'guild', 'guildRaid'][i];
-      let errorType = `${endpoint.toUpperCase()}_FETCH_FAILED`;
-      let errorData: ApiError | null = null;
-
-      if (result.status === 'fulfilled') {
-        const response = result.value;
-        if (!response.ok) {
-          try { errorData = response.status === 404 ? null : await response.json(); } catch (e) {}
-          errorType = errorData?.type || (response.status === 404 ? `${endpoint.toUpperCase()}_NOT_FOUND` : `${response.status}_ERROR`);
-          
-          if (response.status === 403 && errorData?.type?.includes('API Key not configured')) {
-            apiKeyIsMissing = true;
-          }
-          
-          const errorMsg = `${endpoint}: ${errorType}`; 
-          combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
-          
-          if (endpoint === 'player') setPlayerData(null);
-          if (endpoint === 'guild') setGuildData(null);
-          if (endpoint === 'guildRaid') setGuildRaidData(null);
-        } else {
-          try {
-            const data = await response.json();
-            if (endpoint === 'player') setPlayerData(data as PlayerDataResponse);
-            if (endpoint === 'guild') setGuildData(data as GuildResponse);
-            if (endpoint === 'guildRaid') setGuildRaidData(data as GuildRaidResponse);
-          } catch (e: any) {
-            console.error(`Error parsing JSON for ${endpoint}:`, e);
-            const errorMsg = `${endpoint}: PARSE_ERROR`;
-            combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
-          }
-        }
-      } else {
-        console.error(`Fetch error for ${endpoint} data:`, result.reason);
-        const errorMsg = `${endpoint}: FETCH_ERROR`;
-        combinedError = combinedError ? `${combinedError}; ${errorMsg}` : errorMsg;
-      }
-    }
-    
-    if (apiKeyIsMissing) {
-        setFetchError('API_KEY_REQUIRED');
-    } else if (combinedError) {
-        setFetchError(combinedError);
-    } else {
-        setFetchError(null);
-    }
-    setIsFetchingData(false);
-  }, [user, /* setLastApiResponse */]);
-
+  // --- Effect 1: Fetch Player and Guild Data (to get seasons) ---
   useEffect(() => {
+    const fetchBaseData = async () => {
+      if (!user) return;
+
+      console.log("[Effect1] Fetching Player & Guild data...");
+      setIsFetchingBaseData(true);
+      setFetchError(null);
+      setPlayerData(null); 
+      setGuildData(null); 
+      setAvailableSeasons([]); // Reset seasons before fetch
+      setAllSeasonsRaidData({}); // Reset raid data too
+
+      let idToken: string | null = null;
+      try { idToken = await user.getIdToken(); }
+      catch (error) { /* ... */ setFetchError("Token Error"); setIsFetchingBaseData(false); return; }
+      if (!idToken) { /* ... */ setFetchError("Token Error"); setIsFetchingBaseData(false); return; }
+      
+      const fetchOptions = { headers: { 'Authorization': `Bearer ${idToken}` } };
+      let apiKeyIsMissing = false;
+      let baseFetchErrors: string[] = [];
+
+      const results = await Promise.allSettled([
+        fetch('/api/tacticus/player', fetchOptions),
+        fetch('/api/tacticus/guild', fetchOptions),
+      ]);
+
+      // Process Player
+      const playerResult = results[0];
+      if (playerResult.status === 'fulfilled' && playerResult.value.ok) {
+        try { setPlayerData(await playerResult.value.json()); } catch (e) { baseFetchErrors.push("player:PARSE_ERROR"); }
+      } else {
+         // Handle player error (check for API Key missing)
+         let errorType = 'player:FETCH_ERROR';
+         if (playerResult.status === 'fulfilled') {
+             try { 
+                 const errorData: ApiError | null = await playerResult.value.json();
+                 errorType = `player:${errorData?.type || playerResult.value.status + '_ERROR'}`;
+                 if (playerResult.value.status === 403 && errorData?.type?.includes('API Key not configured')) apiKeyIsMissing = true;
+             } catch(e) {}
+         } 
+         baseFetchErrors.push(errorType); 
+      }
+      
+      // Process Guild
+      const guildResult = results[1];
+      if (guildResult.status === 'fulfilled' && guildResult.value.ok) {
+        try { 
+            const data = await guildResult.value.json();
+            setGuildData(data as GuildResponse);
+            const seasons = data?.guild?.guildRaidSeasons;
+            if (Array.isArray(seasons)) {
+                console.log("[Effect1] Found seasons:", seasons);
+                setAvailableSeasons(seasons.sort((a, b) => b - a));
+            }
+         } catch (e) { baseFetchErrors.push("guild:PARSE_ERROR"); }
+      } else {
+        // Handle guild error (check for API Key missing, ignore 404)
+         let errorType = 'guild:FETCH_ERROR';
+         if (guildResult.status === 'fulfilled') {
+             if (guildResult.value.status !== 404) { // Ignore 'not in guild' as a hard error
+                 try { 
+                     const errorData: ApiError | null = await guildResult.value.json();
+                     errorType = `guild:${errorData?.type || guildResult.value.status + '_ERROR'}`;
+                     if (guildResult.value.status === 403 && errorData?.type?.includes('API Key not configured')) apiKeyIsMissing = true;
+                 } catch(e) {}
+                 baseFetchErrors.push(errorType);
+             }
+         }
+         else { baseFetchErrors.push(errorType); }
+      }
+
+      // Set final error state for this phase
+      if (apiKeyIsMissing) {
+        setFetchError('API_KEY_REQUIRED');
+      } else if (baseFetchErrors.length > 0) {
+        setFetchError(baseFetchErrors.join('; '));
+      }
+      setIsFetchingBaseData(false);
+      console.log("[Effect1] Finished Player & Guild fetch.");
+    };
+
     if (user && !authLoading) {
-       fetchAllData();
+      fetchBaseData();
     } else if (!user && !authLoading) {
-       setPlayerData(null);
-       setGuildData(null);
-       setGuildRaidData(null);
-       setFetchError(null);
-       setIsFetchingData(false);
+      // Clear state on logout
+      setPlayerData(null); setGuildData(null); setAllSeasonsRaidData({});
+      setAvailableSeasons([]); setFetchError(null); setIsFetchingBaseData(false);
+      setIsFetchingSeasonData(false);
     }
-  }, [user, authLoading, fetchAllData]);
+  }, [user, authLoading]); // Trigger only on user/auth change
+
+  // --- Effect 2: Fetch All Season Raid Data (when availableSeasons is set) ---
+  useEffect(() => {
+    const fetchSeasonData = async () => {
+       if (!user || availableSeasons.length === 0) {
+            // console.log("[Effect2] Skipping season fetch: No user or no seasons.");
+            return; 
+       }
+
+       console.log(`[Effect2] Starting fetch for seasons: ${availableSeasons.join(', ')}`);
+       setIsFetchingSeasonData(true);
+       setAllSeasonsRaidData({}); 
+
+       let idToken: string | null = null;
+       try { 
+           idToken = await user.getIdToken(); 
+           console.log("[Effect2] Got ID Token for season fetch.");
+       }
+       catch (error) { 
+           console.error("[Effect2] Error getting ID token:", error);
+           setFetchError(prev => [prev, "Token Error (S)"].filter(Boolean).join('; ')); 
+           setIsFetchingSeasonData(false); 
+           return; 
+       }
+       if (!idToken) { 
+           console.error("[Effect2] ID Token is null.");
+           setFetchError(prev => [prev, "Token Error (S)"].filter(Boolean).join('; ')); 
+           setIsFetchingSeasonData(false); 
+           return; 
+       }
+       
+       const fetchOptions = { headers: { 'Authorization': `Bearer ${idToken}` } };
+       let seasonFetchErrors: string[] = [];
+       const fetchedSeasonsData: Record<number, GuildRaidResponse> = {};
+
+       // --- Log URL before fetch --- 
+       console.log("[Effect2] Preparing to fetch season URLs:");
+       const seasonPromises = availableSeasons.map(season => {
+            const url = `/api/tacticus/guildRaid/${season}`; // Construct URL
+            console.log(`[Effect2]   - Fetching: ${url}`); // Log specific URL
+            return fetch(url, fetchOptions);
+       });
+       // --- End Log URL --- 
+       
+       const seasonResults = await Promise.allSettled(seasonPromises);
+       console.log("[Effect2] Season fetch results received."); // Log after fetches complete
+
+       for (let i = 0; i < seasonResults.length; i++) {
+           const result = seasonResults[i];
+           const season = availableSeasons[i];
+           if (result.status === 'fulfilled' && result.value.ok) {
+               try { fetchedSeasonsData[season] = await result.value.json(); } 
+               catch(e) { seasonFetchErrors.push(`S${season}:PARSE_ERROR`); }
+           } else {
+               let errorType = `S${season}:FETCH_ERROR`;
+               if(result.status === 'fulfilled') {
+                  errorType = `S${season}:${result.value.status}_ERROR`; 
+                  console.warn(`Failed fetch S${season}: Status ${result.value.status}`);
+               } else {
+                   console.error(`Fetch rejected S${season}:`, result.reason);
+               }
+               seasonFetchErrors.push(errorType);
+           }
+       }
+       console.log("[Effect2] Final allSeasonsRaidData state:", fetchedSeasonsData);
+       setAllSeasonsRaidData(fetchedSeasonsData);
+       
+       if (seasonFetchErrors.length > 0) {
+          console.error("[Effect2] Errors during season fetch:", seasonFetchErrors);
+          setFetchError(prev => [prev, ...seasonFetchErrors].filter(Boolean).join('; '));
+       }
+       
+       setIsFetchingSeasonData(false);
+       console.log("[Effect2] Finished processing season data.");
+    };
+
+    fetchSeasonData();
+
+  }, [availableSeasons, user]); // Trigger when availableSeasons changes (and user exists)
+
+  // --- Prepare Raid Data based on Selection --- 
+  const raidDataForDisplay = useMemo(() => {
+      console.log(`[Memo] Preparing raidDataForDisplay. Selected: ${selectedSeason}`);
+      let dataToReturn = {};
+      if (selectedSeason === 'all') {
+          dataToReturn = allSeasonsRaidData;
+      } else if (allSeasonsRaidData && allSeasonsRaidData[selectedSeason]) {
+          dataToReturn = { [selectedSeason]: allSeasonsRaidData[selectedSeason] };
+      }
+      console.log("[Memo] Returning raidDataForDisplay with keys:", Object.keys(dataToReturn));
+      return dataToReturn;
+  }, [selectedSeason, allSeasonsRaidData]);
 
   const renderTokens = (tokenData: { current?: number; max?: number; regenDelayInSeconds?: number } | null | undefined, name: string) => {
     if (!tokenData) return null;
@@ -310,7 +393,10 @@ export default function Home() {
     );
   };
 
-  if (authLoading) {
+  // --- Render Logic --- 
+  const isLoading = authLoading || isFetchingBaseData || isFetchingSeasonData; // Combined loading
+
+  if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[rgb(var(--primary-color))]"></div></div>;
   }
 
@@ -318,7 +404,7 @@ export default function Home() {
     return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification via Google Relay ++</div>;
   }
 
-  if (fetchError && !isFetchingData) {
+  if (fetchError && !isLoading) {
     if (fetchError === 'API_KEY_REQUIRED') {
       return (
         <div className="my-4 p-4 border border-yellow-500/50 rounded-lg bg-yellow-900/30 text-yellow-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
@@ -326,7 +412,7 @@ export default function Home() {
           <div className='text-center sm:text-left'>
             <p className="font-semibold text-yellow-200 text-lg">++ API Schlüssel Konfiguration erforderlich ++</p>
             <p className="text-sm mt-1">Dein Tacticus API Schlüssel fehlt oder ist nicht korrekt. Bitte gehe zu den <Link href="/settings" className="font-bold underline hover:text-yellow-100">Einstellungen</Link>, um ihn hinzuzufügen oder zu aktualisieren.</p>
-          </div>
+        </div>
         </div>
       );
     }
@@ -341,21 +427,24 @@ export default function Home() {
     );
   }
 
-  if (!isFetchingData && !fetchError && !playerData) {
+  if (!isLoading && !fetchError && !playerData) {
     return (
       <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Data Feed Received or Still Loading ++</p>
     );
   }
 
+  // Log right before returning JSX
+  console.log("[Render] Final check before return:", { isLoading, fetchError, hasPlayerData: !!playerData, raidDataKeys: Object.keys(raidDataForDisplay) });
+
   return (
     <main className="flex flex-col items-center p-4 md:p-8">
       <h1 className="text-3xl md:text-4xl font-bold mb-8 text-[rgb(var(--primary-color))] uppercase tracking-wider">Tacticus Player Intel</h1>
 
-      {isFetchingData && (
+      {isLoading && (
         <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)]">Retrieving Data Feed...</p>
       )}
 
-      {!isFetchingData && !fetchError && playerData?.player && (
+      {!isLoading && !fetchError && playerData?.player && (
         <div className="w-full max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
             {playerData && (
@@ -365,17 +454,11 @@ export default function Home() {
                 <PowerLevelMetric playerDetails={playerData.player.details} />
               </>
             )}
-            {guildRaidData && (
-              <>
-                {/* Pass the full guild raid data to raid-specific metrics */}
-                {/* We also need the player name to filter raid entries */}
-                <RaidDamageMetric 
-                  raidData={guildRaidData} 
-                  playerName={playerData?.player.details.name} 
-                />
-                <RaidParticipationMetric raidData={guildRaidData} />
-              </>
-            )}
+            {playerData && Object.keys(allSeasonsRaidData).length > 0 && (
+                <div className="mb-6">
+                   <p>DEBUG: Raid data fetched for seasons: {Object.keys(allSeasonsRaidData).join(', ')}</p> 
+                </div>
+             )}
           </div>
 
           {/* Re-add AllianceBarList here, checking for necessary data */}
@@ -384,6 +467,41 @@ export default function Home() {
                <AllianceBarList units={playerData.player.units} />
             </div>
           )}
+
+          {/* --- Season Selector --- */}
+          {availableSeasons.length > 0 && (
+              <div className="mb-4 flex items-center space-x-2">
+                   <label htmlFor="season-select" className="text-sm font-medium text-[rgb(var(--foreground-rgb),0.8)]">Select Season:</label>
+                   <Select 
+                      id="season-select"
+                      value={String(selectedSeason)} 
+                      onValueChange={(value) => setSelectedSeason(value === 'all' ? 'all' : Number(value))}
+                      className="max-w-xs"
+                   >
+                      <SelectItem value="all">All Seasons</SelectItem>
+                      {availableSeasons.map(season => (
+                          <SelectItem key={season} value={String(season)}>
+                              Season {season}
+                          </SelectItem>
+                      ))}
+                  </Select>
+              </div>
+          )}
+
+          {/* --- Boss Composition Performance --- */}
+          {(console.log("[Page] Checking BossComp render:", 
+              {
+                  hasPlayerData: !!playerData, 
+                  selectedSeason: selectedSeason,
+                  raidDataKeys: Object.keys(raidDataForDisplay),
+                  shouldRender: !!playerData && Object.keys(raidDataForDisplay).length > 0 
+              }
+          ), null)}
+          {playerData && Object.keys(raidDataForDisplay).length > 0 && (
+              <div className="mb-6">
+                 <BossCompositionPerformance playerData={playerData} allGuildRaidData={raidDataForDisplay} />
+              </div>
+           )}
 
           <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
 
@@ -425,28 +543,33 @@ export default function Home() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Guild Raid Intel (Current Season)" icon={<Swords size={20} />}>
-               {guildRaidData ? ( 
+               {playerData && Object.keys(allSeasonsRaidData).length > 0 && (
                   <div className="space-y-1 text-sm">
-                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season:</strong> {guildRaidData?.season ?? 'N/A'}</p>
-                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season Config ID:</strong> {guildRaidData?.seasonConfigId ?? 'N/A'}</p>
-                   {guildRaidData.entries && guildRaidData.entries.length > 0 && (
-                       <details className="mt-2">
-                           <summary className="cursor-pointer font-medium text-xs">Raid Entries ({guildRaidData.entries.length})</summary>
-                           <div className="space-y-1 mt-1 max-h-60 overflow-y-auto bg-[rgba(var(--background-start-rgb),0.8)] border border-[rgb(var(--border-color))] p-2 rounded">
-                           {guildRaidData.entries.map((entry, index) => (
-                               <div key={`${entry.userId}-${entry.unitId}-${index}`} className="p-2 border-b border-[rgba(var(--border-color),0.3)] last:border-b-0 text-xs">
-                                   <p className="font-semibold capitalize">{entry.type} ({entry.encounterType}, Tier {entry.tier})</p>
-                                   <p>HP: {entry.remainingHp.toLocaleString()}/{entry.maxHp.toLocaleString()}</p>
-                                   <p>Damage Dealt: {entry.damageDealt.toLocaleString()} ({entry.damageType})</p>
-                                   <p>Player: {entry.userId}</p>
-                               </div>
-                           ))}
-                           </div>
-                       </details>
-                    )}
+                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season:</strong> {playerData.player.details.name} (Current)</p>
+                   <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season Config ID:</strong> {playerData.player.details.name} (Current)</p>
+                   {playerData.player.progress.campaigns && (
+                       <>
+                          <h3 className="font-semibold text-base text-[rgb(var(--primary-color))] mt-2 mb-1">Campaign Logs</h3>
+                          <div className="space-y-1">
+                          {playerData.player.progress.campaigns.map((campaign: CampaignProgress) => (
+                              <details key={campaign.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)] text-xs">
+                                  <summary className="p-1 px-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-[rgb(var(--foreground-rgb),0.95)]">
+                                  <span>{campaign.name} ({campaign.type})</span>
+                                  <ChevronDown size={16} className="opacity-70" />
+                                  </summary>
+                                  <div className="p-2 border-t border-[rgb(var(--border-color))] text-[rgb(var(--foreground-rgb),0.85)]">
+                                  <ul className="list-disc list-inside ml-2 space-y-0.5">
+                                      {campaign.battles.map((battle: CampaignLevel) => (
+                                      <li key={battle.battleIndex}>Battle {battle.battleIndex}: {battle.attemptsUsed} used, {battle.attemptsLeft} left</li>
+                                      ))}
+                                  </ul>
+                                  </div>
+                              </details>
+                          ))}
+                          </div>
+                       </>
+                   )}
                   </div>
-                ) : (
-                  <p className="text-sm text-[rgb(var(--foreground-rgb),0.7)]">No current guild raid data found.</p>
                 )}
           </CollapsibleSection>
 

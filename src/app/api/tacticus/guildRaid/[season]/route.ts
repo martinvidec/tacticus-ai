@@ -1,81 +1,129 @@
 import { NextResponse } from 'next/server';
-import { verifyUserAndGetApiKey } from '@/lib/apiHelpers'; // Import the helper
-
-interface Params {
-  season: string;
-}
+import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin';
+import type { DecodedIdToken } from 'firebase-admin/auth';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
-// Remove static API key usage
-// const TACTICUS_API_KEY = process.env.TACTICUS_API_KEY;
+
+// Helper: Verify Firebase ID Token
+async function verifyUserToken(authHeader: string | null): Promise<DecodedIdToken | null | { error: string, status: number }> {
+    if (!adminAuth) {
+        console.error('Firebase Admin Auth is not initialized!');
+        return { error: 'Server Authentication Error', status: 500 };
+    }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        return decodedToken;
+    } catch (error) {
+        console.error('Error verifying Firebase ID token:', error);
+        return null;
+    }
+}
+
+// Helper: Get API Key from Firestore
+async function getUserApiKey(uid: string): Promise<string | null | { error: string, status: number }> {
+    if (!adminDb) {
+        console.error('Firebase Admin DB is not initialized!');
+        return { error: 'Server Database Error', status: 500 };
+    }
+    try {
+        const userDocRef = adminDb.collection('users').doc(uid);
+        const userDoc = await userDocRef.get();
+        if (!userDoc.exists) {
+            console.warn(`User document not found for UID: ${uid}`);
+            return null;
+        }
+        const apiKey = userDoc.data()?.tacticusApiKey;
+        return apiKey || null;
+    } catch (error) {
+        console.error('Error retrieving API key from Firestore:', error);
+        // Return null here, let the main handler decide the response status
+        return null; 
+    }
+}
 
 export async function GET(
-  request: Request,
-  { params }: { params: Params }
+    request: Request,
+    { params }: { params: { season: string } }
 ) {
-  const season = parseInt(params.season, 10);
+    const season = params.season;
+    console.log(`[API Route] Received GET request for guildRaid season: ${season}`);
 
-  if (!TACTICUS_SERVER_URL) {
-    console.error('TACTICUS_SERVER_URL is not defined in environment variables.');
-    return NextResponse.json({ type: 'SERVER_CONFIG_ERROR' }, { status: 500 });
-  }
+    if (!TACTICUS_SERVER_URL) {
+        console.error('[API Route] TACTICUS_SERVER_URL is not configured.');
+        return NextResponse.json({ type: 'SERVER_CONFIG_ERROR', message: 'Server URL not configured.' }, { status: 500 });
+    }
 
-  // 1. Validate season parameter
-  if (isNaN(season)) {
-    return NextResponse.json({ type: 'Invalid season parameter' }, { status: 400 });
-  }
+    // 1. Verify User
+    const verificationResult = await verifyUserToken(request.headers.get('Authorization'));
+    if (verificationResult === null) {
+        console.log('[API Route] User token verification failed (null result).');
+        return NextResponse.json({ type: 'UNAUTHORIZED', message: 'Invalid or missing user token.' }, { status: 401 });
+    } 
+    if (typeof verificationResult === 'object' && 'error' in verificationResult) {
+         console.log('[API Route] User token verification failed (server error).');
+        return NextResponse.json({ type: 'SERVER_AUTH_ERROR', message: verificationResult.error }, { status: verificationResult.status });
+    }
+    const decodedToken = verificationResult;
+    const uid = decodedToken.uid;
+    console.log(`[API Route] User ${uid} verified.`);
 
-  // 2. Verify user and get their API key
-  const authHeader = request.headers.get('Authorization');
-  const apiKeyResult = await verifyUserAndGetApiKey(authHeader);
+    // 2. Get User's API Key
+    const apiKeyResult = await getUserApiKey(uid);
+     if (typeof apiKeyResult === 'object' && apiKeyResult !== null && 'error' in apiKeyResult) {
+         console.log('[API Route] API Key retrieval failed (server error).');
+         return NextResponse.json({ type: 'SERVER_DB_ERROR', message: apiKeyResult.error }, { status: apiKeyResult.status });
+    }
+    const apiKey = apiKeyResult;
+    if (!apiKey) {
+        console.log(`[API Route] API Key not found for user ${uid}.`);
+        return NextResponse.json({ type: 'FORBIDDEN', message: 'Tacticus API Key not configured for this user.' }, { status: 403 });
+    }
+    console.log(`[API Route] Retrieved API Key for user ${uid}.`);
 
-  if ('error' in apiKeyResult) {
-    return NextResponse.json({ type: apiKeyResult.error }, { status: apiKeyResult.status });
-  }
-  // Successfully got the user-specific API key
-  const { apiKey } = apiKeyResult;
+    // 3. Fetch from Tacticus API
+    const targetUrl = `${TACTICUS_SERVER_URL}guildRaid/${season}`;
+    console.log(`[API Route] Fetching data from Tacticus API: ${targetUrl}`);
+    try {
+        const response = await fetch(targetUrl, {
+            headers: {
+                'X-API-KEY': apiKey,
+                'Accept': 'application/json',
+            },
+        });
 
-  // Remove check for static API key
-  // if (!TACTICUS_API_KEY) {
-  //   console.error('TACTICUS_API_KEY is not defined in environment variables.');
-  //   return NextResponse.json({ type: 'SERVER_CONFIG_ERROR' }, { status: 500 });
-  // }
-  
-  try {
-     // 3. Make the request using the user's API key
-    const response = await fetch(`${TACTICUS_SERVER_URL}guildRaid/${season}`, {
-      headers: {
-        'X-API-KEY': apiKey, // Use the fetched user-specific key
-        'Content-Type': 'application/json' // Good practice to include
-      },
-    });
+        console.log(`[API Route] Tacticus API response status: ${response.status}`);
 
-    // --- Response Handling (mostly unchanged) ---
-    if (!response.ok) {
-        let errorType = 'UNKNOWN_ERROR';
-        let errorDetails = {};
+        // --- Log the raw response body --- 
+        const responseBodyText = await response.text();
+        console.log("[API Route] Raw Tacticus API Response Body:", responseBodyText);
+        // --- End Log --- 
+
+        let data;
         try {
-            errorDetails = await response.json();
-            errorType = (errorDetails as any).type || errorType;
-        } catch (e) { /* Ignore if response is not JSON */ }
-
-        // Handle 404 and 403 specifically for guildRaid season endpoint
-        if (response.status === 404) { errorType = 'NOT_FOUND'; }
-        if (response.status === 403) { errorType = 'FORBIDDEN'; } // API key might be invalid/revoked
+            data = JSON.parse(responseBodyText);
+        } catch (parseError) {
+            console.error('[API Route] Error parsing Tacticus API response:', parseError);
+            return NextResponse.json({ type: 'API_PARSE_ERROR', message: 'Failed to parse response from Tacticus API.' }, { status: 502 }); // 502 Bad Gateway
+        }
         
-        console.error(`Tacticus API Error (${response.status}) for /guildRaid/${season}:`, errorDetails);
-        return NextResponse.json({ type: errorType }, { status: response.status });
-    }
-    // --- End Response Handling ---
+        if (!response.ok) {
+            console.warn('[API Route] Tacticus API returned error:', data);
+            // Forward the status code and error type if possible
+            const status = response.status;
+            const errorType = data?.type || 'TACTICUS_API_ERROR';
+            const message = data?.message || 'Error fetching data from Tacticus API.';
+            return NextResponse.json({ type: errorType, message: message }, { status });
+        }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+        // Return the parsed data
+        return NextResponse.json(data);
 
-  } catch (error) {
-    console.error(`Error fetching guild raid data for season ${season}:`, error);
-    if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
-       return NextResponse.json({ type: 'SERVICE_UNAVAILABLE' }, { status: 503 });
+    } catch (error) {
+        console.error('[API Route] Error fetching from Tacticus API:', error);
+        return NextResponse.json({ type: 'NETWORK_ERROR', message: 'Failed to connect to Tacticus API.' }, { status: 504 }); // 504 Gateway Timeout
     }
-    return NextResponse.json({ type: 'UNKNOWN_ERROR' }, { status: 500 });
-  }
 } 

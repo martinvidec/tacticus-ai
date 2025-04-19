@@ -1,5 +1,6 @@
 import { adminAuth, adminDb } from './firebase/firebaseAdmin';
 import { DecodedIdToken } from 'firebase-admin/auth';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Verifies the Firebase ID token from the Authorization header and fetches the user's Tacticus API key.
@@ -42,22 +43,30 @@ export async function verifyUserAndGetApiKey(
              throw new Error("Admin DB not initialized.");
         }
         const userDocRef = adminDb.collection('users').doc(uid);
-        const docSnap = await userDocRef.get();
+        let docSnap = await userDocRef.get();
 
-        if (docSnap.exists) {
-            const data = docSnap.data();
-            const apiKey = data?.tacticusApiKey;
-
-            if (apiKey && typeof apiKey === 'string') {
-                return { uid, apiKey }; // Success!
-            } else {
-                console.log(`User ${uid} found but missing tacticusApiKey.`);
+        if (!docSnap.exists) {
+            console.log(`User document not found for UID: ${uid}. Creating document...`);
+            try {
+                await userDocRef.set({ createdAt: FieldValue.serverTimestamp() }, { merge: true });
+                console.log(`Successfully created user document for UID: ${uid}`);
                 return { error: 'Forbidden: API Key not configured for this user.', status: 403 };
+            } catch (creationError) {
+                console.error(`Failed to create user document for UID: ${uid}`, creationError);
+                return { error: 'Internal Server Error: Could not create user profile.', status: 500 };
             }
-        } else {
-            console.log(`User document not found for UID: ${uid}`);
-            return { error: 'Forbidden: User profile not found.', status: 403 };
         }
+
+        const data = docSnap.data();
+        const apiKey = data?.tacticusApiKey;
+
+        if (apiKey && typeof apiKey === 'string') {
+            return { uid, apiKey }; // Success!
+        } else {
+            console.log(`User ${uid} found but missing tacticusApiKey.`);
+            return { error: 'Forbidden: API Key not configured for this user.', status: 403 };
+        }
+
     } catch (error) {
         console.error(`Error fetching API key for user ${uid}:`, error);
         return { error: 'Internal Server Error: Could not retrieve API key.', status: 500 };

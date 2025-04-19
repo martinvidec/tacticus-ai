@@ -102,6 +102,38 @@ export default function Home() {
   const [selectedAlliances, setSelectedAlliances] = useState<string[]>([]);
   const [selectedFactions, setSelectedFactions] = useState<string[]>([]);
 
+  // --- Find Player's Tacticus ID (Runtime Extraction) --- 
+  const currentPlayerTacticusId = useMemo<string | null>(() => {
+    console.log("[page.tsx] Attempting to extract Tacticus ID from raid data...");
+    if (!allSeasonsRaidData || Object.keys(allSeasonsRaidData).length === 0) {
+      console.log("[page.tsx] Extraction skipped: No raid data available yet.");
+      return null;
+    }
+
+    // Find the first season with entries
+    const seasonKeyWithEntries = Object.keys(allSeasonsRaidData).find(
+      (key) => {
+        const seasonData = allSeasonsRaidData[Number(key)];
+        return Array.isArray(seasonData?.entries) && seasonData.entries.length > 0;
+      }
+    );
+
+    if (seasonKeyWithEntries) {
+      const firstEntry = allSeasonsRaidData[Number(seasonKeyWithEntries)].entries[0];
+      if (firstEntry?.userId) {
+        const extractedId = firstEntry.userId;
+        console.log(`[page.tsx] Extracted Tacticus ID from first entry of Season ${seasonKeyWithEntries}: ${extractedId}`);
+        return extractedId;
+      } else {
+          console.warn(`[page.tsx] First entry in Season ${seasonKeyWithEntries} has no userId.`);
+      }
+    } else {
+      console.warn("[page.tsx] Could not find any season with raid entries to extract Tacticus ID.");
+    }
+
+    return null;
+  }, [allSeasonsRaidData]); // Depends only on raid data now
+
   // --- Memoized Data for Display --- 
   const { filteredAndSortedUnits, availableAlliances, availableFactions } = useMemo(() => {
     if (!playerData?.player?.units) {
@@ -193,7 +225,11 @@ export default function Home() {
       // Process Player
       const playerResult = results[0];
       if (playerResult.status === 'fulfilled' && playerResult.value.ok) {
-        try { setPlayerData(await playerResult.value.json()); } catch (e) { baseFetchErrors.push("player:PARSE_ERROR"); }
+        try { 
+            const rawPlayerData = await playerResult.value.json();
+            // REMOVED: console.log("[Effect1] Raw PlayerData received:", JSON.stringify(rawPlayerData, null, 2));
+            setPlayerData(rawPlayerData);
+         } catch (e) { baseFetchErrors.push("player:PARSE_ERROR"); }
       } else {
          // Handle player error (check for API Key missing)
          let errorType = 'player:FETCH_ERROR';
@@ -454,11 +490,13 @@ export default function Home() {
                 <PowerLevelMetric playerDetails={playerData.player.details} />
               </>
             )}
-            {playerData && Object.keys(allSeasonsRaidData).length > 0 && (
-                <div className="mb-6">
-                   <p>DEBUG: Raid data fetched for seasons: {Object.keys(allSeasonsRaidData).join(', ')}</p> 
-                </div>
-             )}
+            {/* Render Raid Metrics if data is available and Tacticus ID found */}
+            {playerData && Object.keys(allSeasonsRaidData).length > 0 && currentPlayerTacticusId && (
+              <>
+                <RaidDamageMetric allSeasonRaidData={allSeasonsRaidData} tacticusUserId={currentPlayerTacticusId} />
+                <RaidParticipationMetric allSeasonRaidData={allSeasonsRaidData} tacticusUserId={currentPlayerTacticusId} />
+              </>
+            )}
           </div>
 
           {/* Re-add AllianceBarList here, checking for necessary data */}

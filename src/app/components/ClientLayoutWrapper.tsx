@@ -33,7 +33,7 @@ export default function ClientLayoutWrapper({ children }: { children: ReactNode 
         <>
             <header className="p-4 border-b border-[rgb(var(--border-color))] flex justify-between items-center bg-[rgb(var(--background-start-rgb))] sticky top-0 z-20">
                 <div className="flex-1">
-                    {/* Optionally add a logo or title here */}
+                    {/* Optionally add a logo or title here - e.g., an Aquila SVG */}
                 </div>
                 <div className="flex items-center space-x-3">
                     <Button 
@@ -42,12 +42,12 @@ export default function ClientLayoutWrapper({ children }: { children: ReactNode 
                         onClick={() => setIsPopupOpen(true)}
                         title="Open Debug Panel (Ctrl+Shift+I)"
                     >
-                        Debug
+                        Cogitator Log
                     </Button>
                     {user && (
                         <Link href="/settings" passHref legacyBehavior>
-                            <Button size="xs" variant="secondary" icon={SettingsIcon} title="Einstellungen">
-                                Settings
+                            <Button size="xs" variant="secondary" icon={SettingsIcon} title="Interface Calibration">
+                                Calibrate
                             </Button>
                         </Link>
                     )}

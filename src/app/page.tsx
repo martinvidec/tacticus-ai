@@ -493,21 +493,22 @@ export default function Home() {
   const isLoading = authLoading || apiKeyStatusLoading || isFetchingBaseData || isFetchingSeasonData || isManualRefreshing;
 
   if (!user && !authLoading) {
-    return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification via Google Relay ++</div>;
+    return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification Credentials via Astropathic Relay ++</div>;
   }
 
   if (authLoading || (user && isFetchingBaseData && !playerData)) {
-     return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[rgb(var(--primary-color))]"></div></div>;
+     return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Acquiring Data Feed..."></div></div>;
   }
 
   return (
     <main className="flex flex-col items-center p-4 md:p-8">
-      {/* Header - Replaced with component */}
+      {/* Header - Use PageHeader component, which might need internal text adjustments too */}
       <PageHeader 
         user={user} 
         isLoading={isLoading}
         isManualRefreshing={isManualRefreshing}
         handleManualRefresh={handleManualRefresh} 
+        // Pass thematic text down if PageHeader accepts it, or edit PageHeader directly
       />
 
       {/* Display errors regardless of other states if fetchError exists */} 
@@ -521,13 +522,13 @@ export default function Home() {
                <div className='text-center sm:text-left'>
                   {fetchError === 'API_KEY_REQUIRED' ? (
                       <>
-                         <p className="font-semibold text-yellow-200 text-lg">++ API Schlüssel Konfiguration erforderlich ++</p>
-                         <p className="text-sm mt-1">Dein Tacticus API Schlüssel fehlt oder ist nicht korrekt. Bitte gehe zu den <Link href="/settings" className="font-bold underline hover:text-yellow-100">Einstellungen</Link>, um ihn hinzuzufügen oder zu aktualisieren.</p>
+                         <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
+                         <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
                       </>
                   ) : (
                       <>
-                          <p className="font-semibold text-red-200 text-lg">++ Datenabruf fehlgeschlagen ++</p>
-                          <p className="text-sm mt-1">Fehler beim Abrufen der Daten: {fetchError}. Versuche, die Daten neu zu laden oder überprüfe die Debug-Konsole.</p>
+                          <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
+                          <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
                      </>
                   )}
                 </div>
@@ -550,7 +551,7 @@ export default function Home() {
 
                 {/* Season Selector and Boss Performance are now INSIDE GuildRaidIntelSection */} 
 
-                <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
+                <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intelligence Report</h2>
 
                 {/* Player Vitals - Now wrapped by Provider */}
                 <PlayerVitalsSection playerData={playerData} user={user} />
@@ -558,7 +559,7 @@ export default function Home() {
                 {/* Guild Affiliation - Now wrapped by Provider */}
                 <GuildAffiliationSection guildData={guildData} />
 
-                {/* Guild Raid Intel - Uses Context */}
+                {/* Guild Raid Intel - Uses Context */} 
                 <GuildRaidIntelSection 
                     raidDataForDisplay={raidDataForDisplay} 
                     selectedSeason={selectedSeason} 
@@ -567,6 +568,7 @@ export default function Home() {
                     playerData={playerData}
                     heroNameMap={heroNameMap}
                     unitDetailsMap={unitDetailsMap}
+                    // Pass thematic titles down if component accepts props
                 />
 
                 {/* Armoury & Stores - Now wrapped by Provider */}
@@ -577,7 +579,7 @@ export default function Home() {
 
                 {/* Combat Units - Uses Context */}
                 <CollapsibleSection 
-                  title={`Combat Units (${filteredAndSortedUnits.length} / ${playerData?.player?.units?.length ?? 0})`} 
+                  title={`Combat Roster (${filteredAndSortedUnits.length} / ${playerData?.player?.units?.length ?? 0})`} 
                   icon={<Target size={20}/>}
                   isOpen={isCombatUnitsOpen}
                   onToggleRequest={() => setIsCombatUnitsOpen(prev => !prev)}
@@ -596,6 +598,7 @@ export default function Home() {
                       secondarySort={secondarySort}
                       setSecondarySort={setSecondarySort}
                       heroPerformanceData={heroPerformanceData}
+                      // Pass thematic text for filters/sorts if component accepts props
                   />
                 </CollapsibleSection>
             </div>
@@ -604,12 +607,12 @@ export default function Home() {
 
       {/* Show loading indicator inside if manual refresh is happening */} 
       {isManualRefreshing && (
-          <div className="flex justify-center items-center p-10"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]"></div></div>
+          <div className="flex justify-center items-center p-10"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div></div>
       )}
 
       {/* Fallback if user is loaded but no player data (e.g., API key missing AFTER initial load or fetch failed) */} 
       {user && !isLoading && !fetchError && !playerData?.player && (
-          <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Player Data Feed Received ++</p>
+          <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
       )}
     </main>
   );

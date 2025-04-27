@@ -38,3 +38,21 @@ body {
     text-wrap: balance;
   }
 }
+
+@layer components {
+  /* Custom class for the Terminate Connection button */
+  .btn-terminate {
+    @apply px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-150 ease-in-out; /* Base structure from Tailwind */
+    background-color: rgb(var(--secondary-color)) !important; /* Thematic red */
+    border: 1px solid rgb(var(--secondary-color)) !important;
+    color: white !important; /* Or a suitable light color from vars */
+  }
+
+  .btn-terminate:hover {
+    background-color: #991b1b !important; /* Corresponds to Tailwind's red-800 */
+    border-color: #991b1b !important;
+  }
+  .btn-terminate:disabled { /* Optional: Style for disabled state */
+      @apply opacity-50 cursor-not-allowed;
+  }
+}

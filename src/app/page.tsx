@@ -18,8 +18,6 @@ import MetricsGrid from './components/MetricsGrid';
 // Removed import BossCompositionPerformance from './components/charts/BossCompositionPerformance';
 // Import new component
 import AllianceDistribution from './components/AllianceDistribution';
-// Import new component
-import BossPerformanceSection from './components/BossPerformanceSection';
 // Import refactored components
 import CollapsibleSection from './components/CollapsibleSection';
 import PlayerVitalsSection from './components/PlayerVitalsSection';
@@ -419,32 +417,8 @@ export default function Home() {
              {/* Alliance Distribution - Replaced with component */}
              <AllianceDistribution units={playerData?.player?.units} />
  
-             {/* Season Selector */} 
-             {availableSeasons.length > 0 && (
-                 <div className="mb-4 flex items-center space-x-2">
-                      <label htmlFor="season-select" className="text-sm font-medium text-[rgb(var(--foreground-rgb),0.8)]">Select Season:</label>
-                      <Select 
-                         id="season-select"
-                         value={String(selectedSeason)} 
-                         onValueChange={(value) => setSelectedSeason(value === 'all' ? 'all' : Number(value))}
-                         className="max-w-xs"
-                      >
-                         <SelectItem value="all">All Seasons</SelectItem>
-                         {availableSeasons.map(season => (
-                             <SelectItem key={season} value={String(season)}>
-                                 Season {season}
-                             </SelectItem>
-                         ))}
-                     </Select>
-                 </div>
-             )}
- 
-             {/* Boss Composition Performance - Replaced with component */}
-             <BossPerformanceSection 
-                playerData={playerData} 
-                raidDataForDisplay={raidDataForDisplay} 
-             />
- 
+             {/* Season Selector and Boss Performance are now INSIDE GuildRaidIntelSection */}
+  
              <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
  
              {/* Player Vitals - Replaced with component */}
@@ -454,7 +428,13 @@ export default function Home() {
              <GuildAffiliationSection guildData={guildData} />
  
              {/* Guild Raid Intel - Replaced with component */}
-             <GuildRaidIntelSection raidDataForDisplay={raidDataForDisplay} selectedSeason={selectedSeason} />
+             <GuildRaidIntelSection 
+                raidDataForDisplay={raidDataForDisplay} 
+                selectedSeason={selectedSeason} 
+                availableSeasons={availableSeasons}
+                setSelectedSeason={setSelectedSeason}
+                playerData={playerData}
+             />
  
              {/* Armoury & Stores - Replaced with component */}
              <ArmouryStoresSection inventory={playerData?.player?.inventory} />

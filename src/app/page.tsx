@@ -213,6 +213,21 @@ export default function Home() {
     return performanceMap;
   }, [allSeasonsRaidData]);
 
+  // --- Memoized Hero Name Lookup Map --- 
+  const heroNameMap = useMemo(() => {
+      console.log("[Memo] Creating heroNameMap");
+      const map = new Map<string, string>();
+      if (playerData?.player?.units) {
+          playerData.player.units.forEach(unit => {
+              if (unit.id && unit.name) { // Ensure both id and name exist
+                  map.set(unit.id, unit.name);
+              }
+          });
+      }
+      console.log(`[Memo] Finished creating heroNameMap. Map size: ${map.size}`);
+      return map;
+  }, [playerData]); // Depends only on playerData
+
   // Provide the context value - MOVED UP before conditional returns
   const openUnitContextValue = useMemo(() => ({ 
       openUnitIds, 
@@ -531,6 +546,7 @@ export default function Home() {
                     availableSeasons={availableSeasons}
                     setSelectedSeason={setSelectedSeason}
                     playerData={playerData}
+                    heroNameMap={heroNameMap}
                 />
 
                 {/* Armoury & Stores - Now wrapped by Provider */}

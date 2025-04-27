@@ -12,6 +12,7 @@ interface GuildRaidIntelSectionProps {
   availableSeasons: number[];
   setSelectedSeason: (value: number | 'all') => void;
   playerData: PlayerDataResponse | null;
+  heroNameMap: Map<string, string>;
 }
 
 const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
@@ -20,6 +21,7 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
   availableSeasons,
   setSelectedSeason,
   playerData,
+  heroNameMap,
 }) => {
   const title = `Guild Raid Intel & Performance`;
   const { toggleUnitOpen, openCombatUnitsSection } = useOpenUnit();
@@ -136,7 +138,7 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
                                       title={`Scroll to ${hero.unitId}'s timeline`}
                                       onClick={(e) => handleHeroLinkClick(e, hero.unitId)}
                                     >
-                                      {hero.unitId}
+                                      {heroNameMap.get(hero.unitId) || hero.unitId}
                                     </a>
                                     : {hero.power?.toLocaleString()} Power
                                   </li>

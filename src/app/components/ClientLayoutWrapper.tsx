@@ -31,7 +31,7 @@ export default function ClientLayoutWrapper({ children }: { children: ReactNode 
 
     return (
         <>
-            <header className="p-4 border-b border-[rgb(var(--border-color))] flex justify-between items-center bg-[rgb(var(--background-start-rgb))] sticky top-0 z-10">
+            <header className="p-4 border-b border-[rgb(var(--border-color))] flex justify-between items-center bg-[rgb(var(--background-start-rgb))] sticky top-0 z-20">
                 <div className="flex-1">
                     {/* Optionally add a logo or title here */}
                 </div>

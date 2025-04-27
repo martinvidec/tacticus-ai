@@ -228,6 +228,25 @@ export default function Home() {
       return map;
   }, [playerData]); // Depends only on playerData
 
+  // --- Memoized Unit Details Lookup Map --- 
+  const unitDetailsMap = useMemo(() => {
+      console.log("[Memo] Creating unitDetailsMap");
+      const map = new Map<string, { name?: string, faction?: string, grandAlliance?: string }>();
+      if (playerData?.player?.units) {
+          playerData.player.units.forEach(unit => {
+              if (unit.id) { 
+                  map.set(unit.id, { 
+                      name: unit.name, 
+                      faction: unit.faction, 
+                      grandAlliance: unit.grandAlliance
+                  });
+              }
+          });
+      }
+      console.log(`[Memo] Finished creating unitDetailsMap. Map size: ${map.size}`);
+      return map;
+  }, [playerData]);
+
   // Provide the context value - MOVED UP before conditional returns
   const openUnitContextValue = useMemo(() => ({ 
       openUnitIds, 
@@ -547,6 +566,7 @@ export default function Home() {
                     setSelectedSeason={setSelectedSeason}
                     playerData={playerData}
                     heroNameMap={heroNameMap}
+                    unitDetailsMap={unitDetailsMap}
                 />
 
                 {/* Armoury & Stores - Now wrapped by Provider */}

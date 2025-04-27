@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useDebug } from '@/lib/contexts/DebugContext';
@@ -32,6 +32,26 @@ import MissionProgressSection from './components/MissionProgressSection';
 // Import new component
 import CombatUnitsSection from './components/CombatUnitsSection';
 
+// --- Context for Opened Unit Details --- 
+interface OpenUnitContextType {
+  openUnitIds: Set<string>;
+  toggleUnitOpen: (unitId: string) => void;
+  openCombatUnitsSection: () => void;
+}
+
+// Create context with a default value (can be null or a mock, but check usage)
+const OpenUnitContext = createContext<OpenUnitContextType | null>(null);
+
+// Custom hook for easier consumption (optional but good practice)
+export const useOpenUnit = () => {
+  const context = useContext(OpenUnitContext);
+  if (!context) {
+    throw new Error('useOpenUnit must be used within an OpenUnitProvider');
+  }
+  return context;
+};
+// --- End Context Definition --- 
+
 // Helper type for sorting
 type SortKey = 'name' | 'xpLevel' | 'rank' | 'shards' | 'progressionIndex' | 'upgradesCount';
 type SortDirection = 'asc' | 'desc';
@@ -62,6 +82,28 @@ export default function Home() {
   const [secondarySort, setSecondarySort] = useState<SortCriterion>({ key: null, direction: 'asc' });
   const [selectedAlliances, setSelectedAlliances] = useState<string[]>([]);
   const [selectedFactions, setSelectedFactions] = useState<string[]>([]);
+  // State for managing open units
+  const [openUnitIds, setOpenUnitIds] = useState<Set<string>>(new Set());
+  // State for managing Combat Units collapsible section itself
+  const [isCombatUnitsOpen, setIsCombatUnitsOpen] = useState(false);
+
+  // Function to toggle a unit's open state
+  const toggleUnitOpen = useCallback((unitId: string) => {
+      setOpenUnitIds(prevOpenIds => {
+          const newOpenIds = new Set(prevOpenIds);
+          if (newOpenIds.has(unitId)) {
+              newOpenIds.delete(unitId);
+          } else {
+              newOpenIds.add(unitId);
+          }
+          return newOpenIds;
+      });
+  }, []);
+
+  // Function to explicitly open the Combat Units section
+  const openCombatUnitsSection = useCallback(() => {
+      setIsCombatUnitsOpen(true);
+  }, []);
 
   // --- Memoized Data for Display --- 
   const { filteredAndSortedUnits, availableAlliances, availableFactions } = useMemo(() => {
@@ -170,6 +212,13 @@ export default function Home() {
     console.log(`[Memo] Finished calculating heroPerformanceData. Map size: ${performanceMap.size}`);
     return performanceMap;
   }, [allSeasonsRaidData]);
+
+  // Provide the context value - MOVED UP before conditional returns
+  const openUnitContextValue = useMemo(() => ({ 
+      openUnitIds, 
+      toggleUnitOpen, 
+      openCombatUnitsSection
+  }), [openUnitIds, toggleUnitOpen, openCombatUnitsSection]);
 
   // --- Refactored Fetch Logic --- 
   const handleFetchBaseData = useCallback(async () => {
@@ -453,70 +502,79 @@ export default function Home() {
 
       {/* Render content only if user is loaded, not loading, no critical error, and player data exists */} 
       {user && !isLoading && !fetchError && playerData?.player && (
-        <div key={user.uid} className="w-full max-w-6xl"> 
-             {/* Grid with metrics - Replaced with component */}
-             <MetricsGrid 
-                playerData={playerData}
-                allSeasonsRaidData={allSeasonsRaidData}
-                tacticusUserId={tacticusUserId}
-             />
- 
-             {/* Alliance Distribution - Replaced with component */}
-             <AllianceDistribution units={playerData?.player?.units} />
- 
-             {/* Season Selector and Boss Performance are now INSIDE GuildRaidIntelSection */}
-  
-             <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
- 
-             {/* Player Vitals - Replaced with component */}
-             <PlayerVitalsSection playerData={playerData} user={user} />
- 
-             {/* Guild Affiliation - Replaced with component */}
-             <GuildAffiliationSection guildData={guildData} />
- 
-             {/* Guild Raid Intel - Replaced with component */}
-             <GuildRaidIntelSection 
-                raidDataForDisplay={raidDataForDisplay} 
-                selectedSeason={selectedSeason} 
-                availableSeasons={availableSeasons}
-                setSelectedSeason={setSelectedSeason}
-                playerData={playerData}
-             />
- 
-             {/* Armoury & Stores - Replaced with component */}
-             <ArmouryStoresSection inventory={playerData?.player?.inventory} />
- 
-             {/* Mission Progress & Resources - Replaced with component */}
-             <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />
- 
-             {/* Combat Units - Replaced with component */}
-             <CombatUnitsSection 
-                filteredAndSortedUnits={filteredAndSortedUnits}
-                totalUnitsCount={playerData?.player?.units?.length ?? 0}
-                availableAlliances={availableAlliances}
-                availableFactions={availableFactions}
-                selectedAlliances={selectedAlliances}
-                setSelectedAlliances={setSelectedAlliances}
-                selectedFactions={selectedFactions}
-                setSelectedFactions={setSelectedFactions}
-                primarySort={primarySort}
-                setPrimarySort={setPrimarySort}
-                secondarySort={secondarySort}
-                setSecondarySort={setSecondarySort}
-                heroPerformanceData={heroPerformanceData}
-             />
+        <OpenUnitContext.Provider value={openUnitContextValue}>
+            <div key={user.uid} className="w-full max-w-6xl">
+                {/* Grid with metrics - Replaced with component */}
+                <MetricsGrid 
+                    playerData={playerData}
+                    allSeasonsRaidData={allSeasonsRaidData}
+                    tacticusUserId={tacticusUserId}
+                />
+
+                {/* Alliance Distribution - Replaced with component */}
+                <AllianceDistribution units={playerData?.player?.units} />
+
+                {/* Season Selector and Boss Performance are now INSIDE GuildRaidIntelSection */} 
+
+                <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intel</h2>
+
+                {/* Player Vitals - Now wrapped by Provider */}
+                <PlayerVitalsSection playerData={playerData} user={user} />
+
+                {/* Guild Affiliation - Now wrapped by Provider */}
+                <GuildAffiliationSection guildData={guildData} />
+
+                {/* Guild Raid Intel - Uses Context */}
+                <GuildRaidIntelSection 
+                    raidDataForDisplay={raidDataForDisplay} 
+                    selectedSeason={selectedSeason} 
+                    availableSeasons={availableSeasons}
+                    setSelectedSeason={setSelectedSeason}
+                    playerData={playerData}
+                />
+
+                {/* Armoury & Stores - Now wrapped by Provider */}
+                <ArmouryStoresSection inventory={playerData?.player?.inventory} />
+
+                {/* Mission Progress & Resources - Now wrapped by Provider */}
+                <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />
+
+                {/* Combat Units - Uses Context */}
+                <CollapsibleSection 
+                  title={`Combat Units (${filteredAndSortedUnits.length} / ${playerData?.player?.units?.length ?? 0})`} 
+                  icon={<Target size={20}/>}
+                  isOpen={isCombatUnitsOpen}
+                  onToggleRequest={() => setIsCombatUnitsOpen(prev => !prev)}
+                >
+                  <CombatUnitsSection 
+                      filteredAndSortedUnits={filteredAndSortedUnits}
+                      totalUnitsCount={playerData?.player?.units?.length ?? 0}
+                      availableAlliances={availableAlliances}
+                      availableFactions={availableFactions}
+                      selectedAlliances={selectedAlliances}
+                      setSelectedAlliances={setSelectedAlliances}
+                      selectedFactions={selectedFactions}
+                      setSelectedFactions={setSelectedFactions}
+                      primarySort={primarySort}
+                      setPrimarySort={setPrimarySort}
+                      secondarySort={secondarySort}
+                      setSecondarySort={setSecondarySort}
+                      heroPerformanceData={heroPerformanceData}
+                  />
+                </CollapsibleSection>
             </div>
-         )}
+        </OpenUnitContext.Provider>
+      )}
 
-         {/* Show loading indicator inside if manual refresh is happening */} 
-         {isManualRefreshing && (
-             <div className="flex justify-center items-center p-10"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]"></div></div>
-         )}
+      {/* Show loading indicator inside if manual refresh is happening */} 
+      {isManualRefreshing && (
+          <div className="flex justify-center items-center p-10"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]"></div></div>
+      )}
 
-         {/* Fallback if user is loaded but no player data (e.g., API key missing AFTER initial load or fetch failed) */} 
-         {user && !isLoading && !fetchError && !playerData?.player && (
-             <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Player Data Feed Received ++</p>
-         )}
+      {/* Fallback if user is loaded but no player data (e.g., API key missing AFTER initial load or fetch failed) */} 
+      {user && !isLoading && !fetchError && !playerData?.player && (
+          <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Player Data Feed Received ++</p>
+      )}
     </main>
   );
 }

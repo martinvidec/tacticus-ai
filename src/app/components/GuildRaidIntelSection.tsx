@@ -4,6 +4,7 @@ import CollapsibleSection from './CollapsibleSection';
 import { Swords, User, Target as TargetIcon, Bomb, Calendar } from 'lucide-react';
 import SeasonSelector from './SeasonSelector';
 import BossPerformanceSection from './BossPerformanceSection';
+import { useOpenUnit } from '../page'; // Adjust path if context is defined elsewhere
 
 interface GuildRaidIntelSectionProps {
   raidDataForDisplay: Record<number, GuildRaidResponse>;
@@ -21,6 +22,21 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
   playerData,
 }) => {
   const title = `Guild Raid Intel & Performance`;
+  const { toggleUnitOpen, openCombatUnitsSection } = useOpenUnit();
+
+  // Define the handler outside the loops, accepting the unitId
+  const handleHeroLinkClick = (event: React.MouseEvent<HTMLAnchorElement>, unitId: string) => {
+      event.preventDefault(); // Prevent default anchor jump
+      // FIRST, ensure the parent Combat Units section is open
+      openCombatUnitsSection();
+      // THEN, toggle the specific unit's details
+      toggleUnitOpen(unitId); // Use the passed unitId
+      // Optional: Programmatic scroll after a short delay
+      setTimeout(() => {
+        const targetElement = document.getElementById(`hero-timeline-${unitId}`); // Use the passed unitId
+        targetElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100); // Small delay
+  };
 
   const formatDate = (dateStringOrUnixSeconds: string | number | undefined) => {
     if (dateStringOrUnixSeconds === undefined || dateStringOrUnixSeconds === null) return 'N/A';
@@ -83,42 +99,54 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
                 )}
                 {entries.length > 0 ? (
                   <ul className="space-y-2 pl-2 max-h-96 overflow-y-auto pr-1">
-                    {entries.map((entry: GuildRaidResponse['entries'][number], index: number) => (
-                      <li key={`${season}-${index}-${entry.userId}-${entry.startedOn}`} className="border border-[rgba(var(--border-color),0.3)] p-2 rounded bg-[rgba(var(--background-start-rgb),0.5)] text-xs">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
-                          <div className="flex items-center space-x-1">
-                            <User size={12} className="text-[rgb(var(--primary-color))] opacity-80"/> 
-                            <span>{entry.userId?.substring(0, 8) ?? 'N/A'}...</span>
+                    {entries.map((entry: GuildRaidResponse['entries'][number], index: number) => {
+                      return (
+                        <li key={`${season}-${index}-${entry.userId}-${entry.startedOn}`} className="border border-[rgba(var(--border-color),0.3)] p-2 rounded bg-[rgba(var(--background-start-rgb),0.5)] text-xs">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+                            <div className="flex items-center space-x-1">
+                              <User size={12} className="text-[rgb(var(--primary-color))] opacity-80"/> 
+                              <span>{entry.userId?.substring(0, 8) ?? 'N/A'}...</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <TargetIcon size={12} className="text-[rgb(var(--primary-color))] opacity-80"/> 
+                              <span>{entry.unitId?.replace('GuildBoss','').split('Boss')[1] ?? entry.unitId ?? 'N/A'} ({entry.encounterType})</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <strong className="text-[rgb(var(--primary-color))] font-semibold">Dmg:</strong> 
+                              <span>{entry.damageDealt?.toLocaleString() ?? 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              {entry.damageType === 'Bomb' ? <Bomb size={12} className="text-orange-400"/> : <Swords size={12} className="text-red-400"/>}
+                              <span>{entry.damageType ?? 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 col-span-full sm:col-span-1">
+                              <Calendar size={12} className="text-[rgb(var(--primary-color))] opacity-80"/>
+                              <span>{formatDate(entry.startedOn)}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <TargetIcon size={12} className="text-[rgb(var(--primary-color))] opacity-80"/> 
-                            <span>{entry.unitId?.replace('GuildBoss','').split('Boss')[1] ?? entry.unitId ?? 'N/A'} ({entry.encounterType})</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <strong className="text-[rgb(var(--primary-color))] font-semibold">Dmg:</strong> 
-                            <span>{entry.damageDealt?.toLocaleString() ?? 'N/A'}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            {entry.damageType === 'Bomb' ? <Bomb size={12} className="text-orange-400"/> : <Swords size={12} className="text-red-400"/>}
-                            <span>{entry.damageType ?? 'N/A'}</span>
-                          </div>
-                          <div className="flex items-center space-x-1 col-span-full sm:col-span-1">
-                            <Calendar size={12} className="text-[rgb(var(--primary-color))] opacity-80"/>
-                            <span>{formatDate(entry.startedOn)}</span>
-                          </div>
-                        </div>
-                        {entry.heroDetails && entry.heroDetails.length > 0 && (
-                          <details className="mt-1.5">
-                            <summary className="text-[10px] cursor-pointer text-[rgba(var(--foreground-rgb),0.7)]">Hero Details ({entry.heroDetails.length})</summary>
-                            <ul className="list-disc list-inside pl-3 text-[10px]">
-                              {entry.heroDetails.map((hero: PublicHeroDetail) => 
-                                <li key={hero.unitId}>{hero.unitId}: {hero.power?.toLocaleString()} Power</li>
-                              )}
-                            </ul>
-                          </details>
-                        )}
-                      </li>
-                    ))}
+                          {entry.heroDetails && entry.heroDetails.length > 0 && (
+                            <details className="mt-1.5">
+                              <summary className="text-[10px] cursor-pointer text-[rgba(var(--foreground-rgb),0.7)]">Hero Details ({entry.heroDetails.length})</summary>
+                              <ul className="list-disc list-inside pl-3 text-[10px]">
+                                {entry.heroDetails.map((hero: PublicHeroDetail) => (
+                                  <li key={hero.unitId}>
+                                    <a 
+                                      href={`#hero-timeline-${hero.unitId}`} 
+                                      className="text-[rgb(var(--primary-color))] hover:underline cursor-pointer"
+                                      title={`Scroll to ${hero.unitId}'s timeline`}
+                                      onClick={(e) => handleHeroLinkClick(e, hero.unitId)}
+                                    >
+                                      {hero.unitId}
+                                    </a>
+                                    : {hero.power?.toLocaleString()} Power
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   selectedSeason === 'all' && <p className="text-xs text-[rgb(var(--foreground-rgb),0.6)] pl-2">No entries for Season {season}.</p>

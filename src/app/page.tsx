@@ -594,35 +594,24 @@ export default function Home() {
                   )}
              </CollapsibleSection>
  
-             <CollapsibleSection title="Guild Raid Intel (Current Season)" icon={<Swords size={20} />}> 
-                 {playerData && Object.keys(allSeasonsRaidData).length > 0 && (
-                    <div className="space-y-1 text-sm">
-                     <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season:</strong> {playerData.player.details.name} (Current)</p>
-                     <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season Config ID:</strong> {playerData.player.details.name} (Current)</p>
-                     {playerData.player.progress.campaigns && (
-                         <>
-                            <h3 className="font-semibold text-base text-[rgb(var(--primary-color))] mt-2 mb-1">Campaign Logs</h3>
-                            <div className="space-y-1">
-                            {playerData.player.progress.campaigns.map((campaign: CampaignProgress) => (
-                                <details key={campaign.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)] text-xs">
-                                    <summary className="p-1 px-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-[rgb(var(--foreground-rgb),0.95)]">
-                                    <span>{campaign.name} ({campaign.type})</span>
-                                    <ChevronDown size={16} className="opacity-70" />
-                                    </summary>
-                                    <div className="p-2 border-t border-[rgb(var(--border-color))] text-[rgb(var(--foreground-rgb),0.85)]">
-                                    <ul className="list-disc list-inside ml-2 space-y-0.5">
-                                        {campaign.battles.map((battle: CampaignLevel) => (
-                                        <li key={battle.battleIndex}>Battle {battle.battleIndex}: {battle.attemptsUsed} used, {battle.attemptsLeft} left</li>
-                                        ))}
-                                    </ul>
-                                    </div>
-                                </details>
-                            ))}
-                            </div>
-                         </>
-                     )}
-                    </div>
-                  )}
+             {/* Corrected Guild Raid Intel Section */}
+             <CollapsibleSection title={`Guild Raid Intel (${selectedSeason === 'all' ? 'All Selected' : `Season ${selectedSeason}`})`} icon={<Swords size={20} />}>
+               {Object.keys(raidDataForDisplay).length > 0 ? (
+                 <div className="space-y-2 text-sm">
+                   {Object.entries(raidDataForDisplay).map(([season, data]) => {
+                     // Check if data is valid GuildRaidResponse before accessing entries
+                     const entryCount = (data && typeof data === 'object' && 'entries' in data && Array.isArray(data.entries)) ? data.entries.length : 0;
+                     return (
+                       <div key={season} className="border-b border-[rgba(var(--border-color),0.5)] pb-2 last:border-b-0">
+                         <p><strong className="text-[rgb(var(--primary-color))] font-semibold">Season {season}:</strong> {entryCount} Entries</p>
+                         {/* TODO: Add more detailed raid entry display here (e.g., top damage, bosses hit) */}
+                       </div>
+                     );
+                   })}
+                 </div>
+               ) : (
+                 <p className="text-sm text-[rgb(var(--foreground-rgb),0.7)]">No raid data available for the selected season(s).</p>
+               )}
              </CollapsibleSection>
 
           {playerData.player.inventory && (

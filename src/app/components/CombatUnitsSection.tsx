@@ -3,6 +3,7 @@ import { Unit, Ability, UnitItem, GrandAlliance, Faction } from '@/lib/types';
 import CollapsibleSection from './CollapsibleSection';
 import { Target, ChevronDown } from 'lucide-react';
 import { Select, SelectItem, MultiSelect, MultiSelectItem, Card } from '@tremor/react';
+import HeroRaidTimelineChart from './charts/HeroRaidTimelineChart';
 
 // Types moved/copied from page.tsx
 type SortKey = 'name' | 'xpLevel' | 'rank' | 'shards' | 'progressionIndex' | 'upgradesCount';
@@ -25,8 +26,7 @@ interface CombatUnitsSectionProps {
   setPrimarySort: (value: SortCriterion) => void;
   secondarySort: SortCriterion;
   setSecondarySort: (value: SortCriterion) => void;
-  // Helper functions passed as props or redefined here?
-  // Redefining seems simpler for now to keep components self-contained
+  heroPerformanceData: Map<string, { time: Date; power: number; totalDamage: number }[]>;
 }
 
 // Helper functions moved from page.tsx
@@ -104,6 +104,7 @@ const CombatUnitsSection: React.FC<CombatUnitsSectionProps> = ({
   setPrimarySort,
   secondarySort,
   setSecondarySort,
+  heroPerformanceData,
 }) => {
 
   if (totalUnitsCount === 0) {
@@ -195,6 +196,9 @@ const CombatUnitsSection: React.FC<CombatUnitsSectionProps> = ({
               const summaryDetails = sortParts.length > 0 ? `(${sortParts.join(', ')})` : '';
               // --- End Build Dynamic Summary ---
               
+              // Get performance data for this specific unit
+              const performanceData = heroPerformanceData.get(unit.id);
+
               return (
                 <details key={unit.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)]">
                   <summary className="p-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-sm text-[rgb(var(--foreground-rgb),0.95)]">
@@ -224,6 +228,13 @@ const CombatUnitsSection: React.FC<CombatUnitsSectionProps> = ({
                           {unit.items.map(renderUnitItem)}
                         </ul>
                       </div>
+                    )}
+                    {/* Render the performance chart if data exists */}
+                    {performanceData && performanceData.length > 0 && (
+                      <HeroRaidTimelineChart 
+                         heroId={unit.name || unit.id} 
+                         data={performanceData} 
+                      />
                     )}
                   </div>
                 </details>

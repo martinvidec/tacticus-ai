@@ -22,10 +22,33 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
 }) => {
   const title = `Guild Raid Intel & Performance`;
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return 'N/A';
+  const formatDate = (dateStringOrUnixSeconds: string | number | undefined) => {
+    if (dateStringOrUnixSeconds === undefined || dateStringOrUnixSeconds === null) return 'N/A';
+
+    let timestampInMillis: number;
+
+    // Check if it's a number (likely Unix seconds) or a string
+    if (typeof dateStringOrUnixSeconds === 'number') {
+        timestampInMillis = dateStringOrUnixSeconds * 1000; 
+    } else if (typeof dateStringOrUnixSeconds === 'string') {
+        const parsedNum = parseInt(dateStringOrUnixSeconds, 10);
+        if (!isNaN(parsedNum)) {
+            // Assume it's a string representation of Unix seconds
+            timestampInMillis = parsedNum * 1000;
+        } else {
+            // Try parsing as a date string directly (fallback)
+            timestampInMillis = Date.parse(dateStringOrUnixSeconds);
+        }
+    } else {
+        return 'Invalid Input'; // Should not happen based on input type
+    }
+
     try {
-      return new Date(dateString).toLocaleString();
+      // Check if the resulting timestamp is valid
+      if (isNaN(timestampInMillis)) {
+          return 'Invalid Date';
+      }
+      return new Date(timestampInMillis).toLocaleString();
     } catch (e) {
       return 'Invalid Date';
     }

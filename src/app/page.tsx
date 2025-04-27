@@ -124,6 +124,53 @@ export default function Home() {
     return { filteredAndSortedUnits: sorted, availableAlliances: allAlliances, availableFactions: allFactions };
   }, [playerData, primarySort, secondarySort, selectedAlliances, selectedFactions]);
 
+  // --- Memoized Hero Raid Performance Data --- 
+  const heroPerformanceData = useMemo(() => {
+    console.log("[Memo] Calculating heroPerformanceData");
+    const performanceMap = new Map<string, { time: Date; power: number; totalDamage: number }[]>();
+
+    if (!allSeasonsRaidData) {
+      return performanceMap;
+    }
+
+    Object.values(allSeasonsRaidData).forEach(seasonData => {
+      if (!seasonData || !seasonData.entries) return;
+
+      seasonData.entries.forEach(entry => {
+        // Ensure damageDealt is treated as number early
+        const damageDealtNum = typeof entry.damageDealt === 'string' ? parseInt(entry.damageDealt, 10) : entry.damageDealt;
+
+        // Ensure startedOn is treated as number (Unix seconds) early
+        const startedOnNum = typeof entry.startedOn === 'string' ? parseInt(entry.startedOn, 10) : entry.startedOn;
+        
+        if (!entry.heroDetails || startedOnNum === undefined || startedOnNum === null || isNaN(startedOnNum) || damageDealtNum === undefined || damageDealtNum === null || isNaN(damageDealtNum)) return;
+
+        // Convert Unix seconds to milliseconds for Date constructor
+        const entryTime = new Date(startedOnNum * 1000); 
+        
+        if (isNaN(entryTime.getTime())) return; // Skip if date is invalid
+        
+        entry.heroDetails.forEach(hero => {
+          if (!hero.unitId || hero.power === undefined || hero.power === null) return;
+
+          const heroData = performanceMap.get(hero.unitId) || [];
+          heroData.push({
+            time: entryTime,
+            power: hero.power,
+            totalDamage: damageDealtNum as number, // Cast after checking for undefined/null
+          });
+          performanceMap.set(hero.unitId, heroData);
+        });
+      });
+    });
+
+    // Optional: Sort each hero's data by time - already done in chart component, but can be done here too
+    // performanceMap.forEach(data => data.sort((a, b) => a.time.getTime() - b.time.getTime()));
+
+    console.log(`[Memo] Finished calculating heroPerformanceData. Map size: ${performanceMap.size}`);
+    return performanceMap;
+  }, [allSeasonsRaidData]);
+
   // --- Refactored Fetch Logic --- 
   const handleFetchBaseData = useCallback(async () => {
     if (!user) return;
@@ -456,6 +503,7 @@ export default function Home() {
                 setPrimarySort={setPrimarySort}
                 secondarySort={secondarySort}
                 setSecondarySort={setSecondarySort}
+                heroPerformanceData={heroPerformanceData}
              />
             </div>
          )}

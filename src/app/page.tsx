@@ -8,9 +8,11 @@ import { PlayerDataResponse, GuildResponse, GuildRaidResponse, ApiError, Unit, I
 import { ChevronDown, ChevronUp, Target, ShieldCheck, Box, TrendingUp, ArrowUpDown, Filter, Users, Swords, KeyRound, AlertTriangle, ArrowUp, ArrowDown, SettingsIcon, RefreshCw } from 'lucide-react';
 import { Select, SelectItem, MultiSelect, MultiSelectItem, Card, Title, Button, TextInput, Metric, Grid } from '@tremor/react';
 import { getUserApiKeyStatus } from '@/lib/actions';
+import PageHeader from './components/PageHeader';
+import AuthButton from './components/AuthButton';
 
 // Import new component
-import PageHeader from './components/PageHeader';
+// import PageHeader from './components/PageHeader';
 
 // Import Metrics using relative path from src/app/
 // Removed import MetricsGrid from './components/MetricsGrid';
@@ -491,6 +493,25 @@ export default function Home() {
     console.log("[FetchFn] Finished processing season data.");
 }, [user, availableSeasons]); // Depends on user and availableSeasons
 
+  // --- Manual Refresh Handler ---
+  const handleManualRefresh = useCallback(async () => {
+      // Check against current state values
+      if (isManualRefreshing || isFetchingBaseData || isFetchingSeasonData) return; 
+      console.log("Manual refresh triggered...");
+      setIsManualRefreshing(true);
+      try {
+          // Call the memoized fetch function
+          await handleFetchBaseData();
+          // Season data fetch is triggered by useEffect dependency change
+      } catch (error) {
+          console.error("Error during manual refresh:", error);
+          // Error state is likely set within handleFetchBaseData
+      } finally {
+          setIsManualRefreshing(false); 
+          console.log("Manual refresh finished.");
+      }
+  }, [isManualRefreshing, isFetchingBaseData, isFetchingSeasonData, handleFetchBaseData]); // Correct dependencies
+
   // --- Effects --- 
   useEffect(() => {
     if (user && !authLoading) {
@@ -527,23 +548,6 @@ export default function Home() {
       <p className="text-sm"><strong className="text-[rgb(var(--primary-color))] font-semibold">{name} Tokens:</strong> {tokenData.current ?? '-'}/{tokenData.max ?? '-'} (Regen: {tokenData.regenDelayInSeconds ?? '-'}s)</p>
     );
   };
-
-  // --- Manual Refresh Handler ---
-  const handleManualRefresh = async () => {
-      if (isManualRefreshing || isFetchingBaseData || isFetchingSeasonData) return; // Prevent multiple refreshes
-      console.log("Manual refresh triggered...");
-      setIsManualRefreshing(true);
-      try {
-          await handleFetchBaseData();
-          // handleFetchSeasonData will be triggered automatically by the useEffect
-      } catch (error) {
-          console.error("Error during manual refresh:", error);
-          // Error state is set within handleFetchBaseData
-      } finally {
-          setIsManualRefreshing(false); 
-          console.log("Manual refresh finished.");
-      }
-  };
   
   // --- Render Logic --- 
   const isLoading = authLoading || apiKeyStatusLoading || isFetchingBaseData || isFetchingSeasonData || isManualRefreshing;
@@ -568,17 +572,38 @@ export default function Home() {
     }
   }, [selectedSectionId, resetRaidIntelView, resetArmouryView]); 
 
-  if (!user && !authLoading) {
-    return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification Credentials via Astropathic Relay ++</div>;
+  // --- Conditional Rendering Logic --- 
+
+  // 1. Initial Loading State (Auth Loading)
+  if (authLoading) {
+     return (
+         <div className="flex justify-center items-center h-screen">
+             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Initializing Interface..."></div>
+         </div>
+     );
   }
 
-  if (authLoading || (user && isFetchingBaseData && !playerData)) {
-     return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Acquiring Data Feed..."></div></div>;
+  // 2. Logged Out State
+  if (!user) { // No need to check authLoading here, it's false if we reached this point
+    return (
+        // Centered Auth Button (Sign In)
+        <div className="flex flex-col justify-center items-center min-h-screen p-4">
+            <h1 className="text-3xl font-bold text-[rgb(var(--primary-color))] mb-6 text-center">TACTICUS INTEL FEED</h1>
+            <p className="text-center text-[rgb(var(--foreground-rgb),0.8)] mb-8">++ Authentication Required ++</p>
+            <AuthButton />
+        </div>
+    );
   }
 
+  // 3. Logged In State (but possibly still loading data)
+  //    OR Error State
+  //    OR Ready State
+
+  // We need user to be defined to proceed here
+  
   return (
-    <div className="flex flex-col h-screen"> {/* Ensure outer container takes full height */} 
-        {/* Header stays at the top */} 
+    <> 
+        {/* PageHeader is rendered first, only when logged in */}
         <PageHeader 
             user={user} 
             isLoading={isLoading}
@@ -586,75 +611,69 @@ export default function Home() {
             handleManualRefresh={handleManualRefresh} 
         />
 
-        <div className="flex flex-1 overflow-hidden"> {/* Main content area with sidebar */} 
+        {/* Main content area with Sidebar, only shown when logged in */}
+        <div className="flex flex-1 overflow-hidden"> 
             {/* Sidebar */} 
             <SideNavMenu 
-                sections={sections}
-                selectedSectionId={selectedSectionId}
-                onSelectSection={(id) => {
+                 sections={sections}
+                 selectedSectionId={selectedSectionId}
+                 onSelectSection={(id) => {
                     const previousSectionId = selectedSectionId;
                     setSelectedSectionId(id);
                     // Reset specific section states when navigating away
-                    if (previousSectionId === 'raidIntel' && id !== 'raidIntel') {
-                         resetRaidIntelView(); 
-                    }
-                    // No need to call resetArmouryView here anymore, 
-                    // the useEffect will reset it when navigating TO armoury
-                    // if (previousSectionId === 'armoury' && id !== 'armoury') {
-                    //     resetArmouryView(); 
-                    // }
-                }}
+                    if (previousSectionId === 'raidIntel' && id !== 'raidIntel') { resetRaidIntelView(); }
+                 }}
             />
 
-            {/* Main Content Area - Add relative positioning context */} 
-            <main className="relative flex-1 overflow-y-auto p-4 md:p-8"> 
-                
-                {/* Loading indicator for manual refresh - Moved inside main and adjusted background */} 
+            {/* Main Content Area */} 
+            <main className="relative flex-1 overflow-y-auto p-4 md:p-8 pt-0"> 
+                {/* Loading indicator for manual refresh (inside main content) */} 
                 {isManualRefreshing && (
                     <div className="absolute inset-0 flex justify-center items-center bg-[rgba(var(--background-end-rgb),0.8)] backdrop-blur-sm z-40 rounded-md">
                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div>
                     </div>
                 )}
-
-                {/* Error Display (should be below overlay) */} 
+                
+                {/* Error Display (only shown if logged in but fetch failed) */} 
                 {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
                      <div className="mb-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                         {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
-                         <div className='text-center sm:text-left'>
-                             {fetchError === 'API_KEY_REQUIRED' ? (
-                                 <>
-                                     <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
-                                     <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
-                                 </> 
-                             ) : (
-                                 <>
-                                     <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
-                                     <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
-                                 </> 
-                             )}
-                         </div>
+                          {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
+                          <div className='text-center sm:text-left'>
+                              {fetchError === 'API_KEY_REQUIRED' ? (
+                                  <>
+                                      <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
+                                      <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
+                                  </> 
+                              ) : (
+                                  <>
+                                      <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
+                                      <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
+                                  </> 
+                              )}
+                          </div>
                      </div>
                  )}
 
-                {/* Render content only if user is loaded and data is available (should be below overlay) */} 
-                {user && !isLoading && !fetchError && playerData?.player && (
+                {/* Data Loading Spinner (Initial Data Load, different from manual refresh) */} 
+                {isLoading && !isManualRefreshing && !fetchError && (
+                   <div className="flex justify-center items-center py-10">
+                       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Acquiring Data Feed..."></div>
+                   </div> 
+                )}
+
+                {/* Render content only if logged in, data loaded, and no error */} 
+                {!isLoading && !fetchError && playerData?.player && (
                      <OpenUnitContext.Provider value={openUnitContextValue}> 
                          {/* Breadcrumbs */} 
-                         <div className="mb-4"> 
-                             <Breadcrumbs items={breadcrumbs} /> 
-                         </div> 
+                         <div className="mb-4"> <Breadcrumbs items={breadcrumbs} /> </div> 
                          {/* Conditionally Rendered Section Content */} 
                          <div className="w-full max-w-6xl mx-auto"> 
-                            {/* Render Dashboard Overview */} 
-                            {selectedSectionId === 'dashboard' && 
-                                <DashboardOverview 
-                                    playerData={playerData}
-                                    allSeasonsRaidData={allSeasonsRaidData}
-                                    tacticusUserId={tacticusUserId}
-                                    units={playerData?.player?.units}
-                                />
-                            }
-                            {/* Render other sections */} 
+                            {selectedSectionId === 'dashboard' && <DashboardOverview 
+                                playerData={playerData}
+                                allSeasonsRaidData={allSeasonsRaidData}
+                                tacticusUserId={tacticusUserId}
+                                units={playerData?.player?.units}
+                            />}
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
                             {selectedSectionId === 'guild' && <GuildAffiliationSection guildData={guildData} />}
                             {selectedSectionId === 'raidIntel' && 
@@ -703,12 +722,12 @@ export default function Home() {
                      </OpenUnitContext.Provider> 
                 )}
                 
-                {/* Fallback message if no data (should be below overlay) */} 
-                {user && !isLoading && !fetchError && !playerData?.player && (
-                    <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
+                {/* Fallback message if logged in but no player data (e.g., API key missing after successful login) */}
+                {!isLoading && !fetchError && !playerData?.player && (
+                     <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
                 )}
             </main>
         </div>
-    </div>
+    </>
   );
 }

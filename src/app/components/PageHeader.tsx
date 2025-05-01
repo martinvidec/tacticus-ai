@@ -1,41 +1,61 @@
+'use client';
+
 import React from 'react';
-import { useAuth } from '@/lib/contexts/AuthContext'; // To get user type
+import Link from 'next/link';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useDebug } from '@/lib/contexts/DebugContext';
+import { User } from 'firebase/auth';
+import { RefreshCw, SettingsIcon } from 'lucide-react';
 import { Button } from '@tremor/react';
-import { RefreshCw } from 'lucide-react';
+import AuthButton from './AuthButton';
 
 interface PageHeaderProps {
-  user: ReturnType<typeof useAuth>['user']; // Use the type from useAuth
-  isLoading: boolean;
-  isManualRefreshing: boolean;
-  handleManualRefresh: () => void;
+    user: User | null;
+    isLoading: boolean;
+    isManualRefreshing: boolean;
+    handleManualRefresh: () => void;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({ user, isLoading, isManualRefreshing, handleManualRefresh }) => {
-  return (
-    <div className="w-full max-w-6xl flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-      <div className="flex flex-col items-center sm:items-start">
-        <h1 className="text-3xl md:text-4xl font-bold text-[rgb(var(--primary-color))] uppercase tracking-wider">Tacticus Player Intel</h1>
-        {/* Display Username and Email */}
-        {user && (
-          <span className="text-sm text-[rgb(var(--primary-color),0.7)] mt-1">
-            ++ Identified Operator: {user.displayName || 'Unknown'} {user.email ? `[${user.email}]` : ''} ++
-          </span>
-        )}
-      </div>
-      {user && (
-        <Button
-          icon={RefreshCw}
-          onClick={handleManualRefresh}
-          disabled={isLoading} // Use general isLoading for disable
-          loading={isManualRefreshing} // Specific loading state for spinner
-          variant="secondary"
-          className="text-[rgb(var(--primary-color))] border-[rgb(var(--primary-color))] hover:bg-[rgba(var(--primary-color-rgb),0.1)] disabled:opacity-50"
-        >
-          Refresh Data
-        </Button>
-      )}
-    </div>
-  );
+    const { setIsPopupOpen } = useDebug();
+
+    return (
+        <div className="flex justify-between items-center w-full h-16 mb-4 px-4 md:px-0 pt-4">
+            {/* Left Side: Title and Refresh */}
+            <div className="flex items-center space-x-3">
+                <h1 className="text-xl md:text-2xl font-bold text-[rgb(var(--primary-color))] whitespace-nowrap">
+                    Tacticus Player Intel
+                </h1>
+                <Button
+                    icon={RefreshCw}
+                    variant="light"
+                    onClick={handleManualRefresh}
+                    loading={isManualRefreshing}
+                    disabled={isLoading}
+                    title="Refresh Data"
+                    className={`p-1 rounded-full ${isManualRefreshing ? 'animate-spin' : ''}`}
+                />
+            </div>
+
+            {/* Right Side: Page-specific Buttons & Auth Button */}
+            <div className="flex items-center space-x-3">
+                <Button 
+                    size="xs"
+                    variant="light"
+                    onClick={() => setIsPopupOpen(true)}
+                    title="Open Debug Panel (Ctrl+Shift+I)"
+                >
+                    Cogitator Log
+                </Button>
+                <Link href="/settings" passHref legacyBehavior>
+                    <Button size="xs" variant="secondary" icon={SettingsIcon} title="Interface Calibration">
+                        Calibrate
+                    </Button>
+                </Link>
+                <AuthButton />
+            </div>
+        </div>
+    );
 };
 
 export default PageHeader; 

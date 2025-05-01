@@ -13,11 +13,11 @@ import { getUserApiKeyStatus } from '@/lib/actions';
 import PageHeader from './components/PageHeader';
 
 // Import Metrics using relative path from src/app/
-import MetricsGrid from './components/MetricsGrid';
+// Removed import MetricsGrid from './components/MetricsGrid';
 // Other charts...
 // Removed import BossCompositionPerformance from './components/charts/BossCompositionPerformance';
 // Import new component
-import AllianceDistribution from './components/AllianceDistribution';
+// Removed import AllianceDistribution from './components/AllianceDistribution';
 // Import refactored components
 import CollapsibleSection from './components/CollapsibleSection';
 import PlayerVitalsSection from './components/PlayerVitalsSection';
@@ -31,6 +31,8 @@ import ArmouryStoresSection from './components/ArmouryStoresSection';
 import MissionProgressSection from './components/MissionProgressSection';
 // Import new component
 import CombatUnitsSection from './components/CombatUnitsSection';
+// Import the new Dashboard component
+import DashboardOverview from './components/DashboardOverview';
 
 // Import necessary icons for SideNavMenu
 import {
@@ -40,6 +42,7 @@ import {
     ArchiveBoxIcon,
     ClipboardDocumentListIcon,
     AdjustmentsHorizontalIcon,
+    Squares2X2Icon
 } from '@heroicons/react/24/outline';
 
 // Import new components
@@ -75,8 +78,9 @@ interface SortCriterion {
   direction: SortDirection;
 }
 
-// Define Sections for SideNavMenu
+// Define Sections for SideNavMenu with Dashboard
 const sections = [
+  { id: 'dashboard', title: 'Dashboard', icon: <Squares2X2Icon className="h-5 w-5" /> },
   { id: 'vitals', title: 'Player Vitals', icon: <UserCircleIcon className="h-5 w-5" /> },
   { id: 'guild', title: 'Guild Affiliation', icon: <ShieldCheckIcon className="h-5 w-5" /> },
   { id: 'raidIntel', title: 'Guild Raid Intel', icon: <ChartBarIcon className="h-5 w-5" /> },
@@ -116,6 +120,8 @@ export default function Home() {
   const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0].id);
   // State for breadcrumbs 
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]); 
+  // Add state for Armoury category (needed for reset)
+  const [selectedArmouryCategory, setSelectedArmouryCategory] = useState<keyof Inventory | 'all'>('all'); 
 
   // Function to toggle a unit's open state
   const toggleUnitOpen = useCallback((unitId: string) => {
@@ -138,12 +144,22 @@ export default function Home() {
   // --- Function to reset Raid Intel view (used by breadcrumb onClick) ---
   const resetRaidIntelView = useCallback(() => {
       setSelectedSeason('all');
-      const raidIntelSection = sections.find(sec => sec.id === 'raidIntel');
-      if (raidIntelSection) {
-          // Explicitly define the onClick here to ensure it has the correct reference
-          setBreadcrumbs([{ label: raidIntelSection.title, onClick: resetRaidIntelView }]);
+      const section = sections.find(sec => sec.id === 'raidIntel');
+      if (section) {
+          setBreadcrumbs([{ label: section.title, onClick: resetRaidIntelView }]);
       }
-  }, []); // Keep dependencies empty unless specific state is needed inside
+  }, []); 
+
+  const resetArmouryView = useCallback(() => {
+      // Reset the category state in page.tsx
+      setSelectedArmouryCategory('all'); 
+      // The useEffect below will handle resetting the breadcrumb based on selectedSectionId
+      // We could also explicitly set breadcrumbs here if needed, but useEffect is cleaner
+      // const section = sections.find(sec => sec.id === 'armoury');
+      // if (section) {
+      //     setBreadcrumbs([{ label: section.title, onClick: resetArmouryView }]);
+      // }
+  }, []);
 
   // --- Memoized Data for Display --- 
   const { filteredAndSortedUnits, availableAlliances, availableFactions } = useMemo(() => {
@@ -539,9 +555,10 @@ export default function Home() {
         let baseOnClick: (() => void) | undefined = undefined;
         if (selectedSectionId === 'raidIntel') {
             baseOnClick = resetRaidIntelView;
-        } 
-        // Define onClick handlers for other sections if they implement drill-down
-
+        } else if (selectedSectionId === 'armoury') {
+            baseOnClick = resetArmouryView;
+        }
+        // No onClick needed for Dashboard base breadcrumb
         setBreadcrumbs([{ label: currentSection.title, onClick: baseOnClick }]);
     }
     // Reset scroll position when changing main sections
@@ -549,7 +566,7 @@ export default function Home() {
     if (mainContentArea) {
         mainContentArea.scrollTop = 0;
     }
-  }, [selectedSectionId, resetRaidIntelView]); // Add resetRaidIntelView dependency
+  }, [selectedSectionId, resetRaidIntelView, resetArmouryView]); 
 
   if (!user && !authLoading) {
     return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification Credentials via Astropathic Relay ++</div>;
@@ -575,46 +592,69 @@ export default function Home() {
                 sections={sections}
                 selectedSectionId={selectedSectionId}
                 onSelectSection={(id) => {
+                    const previousSectionId = selectedSectionId;
                     setSelectedSectionId(id);
-                    // Also reset season if navigating away from raidIntel
-                    if (selectedSectionId === 'raidIntel' && id !== 'raidIntel') {
-                         resetRaidIntelView(); // Reset the raid view state
+                    // Reset specific section states when navigating away
+                    if (previousSectionId === 'raidIntel' && id !== 'raidIntel') {
+                         resetRaidIntelView(); 
                     }
+                    // No need to call resetArmouryView here anymore, 
+                    // the useEffect will reset it when navigating TO armoury
+                    // if (previousSectionId === 'armoury' && id !== 'armoury') {
+                    //     resetArmouryView(); 
+                    // }
                 }}
             />
 
-            {/* Main Content Area */} 
-            <main className="flex-1 overflow-y-auto p-4 md:p-8"> 
-                {/* Error Display */} 
-                {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
-                    <div className="mb-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                        {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
-                        <div className='text-center sm:text-left'>
-                            {fetchError === 'API_KEY_REQUIRED' ? (
-                                <>
-                                    <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
-                                    <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
-                                </> 
-                            ) : (
-                                <>
-                                    <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
-                                    <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
-                                </> 
-                            )}
-                        </div>
+            {/* Main Content Area - Add relative positioning context */} 
+            <main className="relative flex-1 overflow-y-auto p-4 md:p-8"> 
+                
+                {/* Loading indicator for manual refresh - Moved inside main and adjusted background */} 
+                {isManualRefreshing && (
+                    <div className="absolute inset-0 flex justify-center items-center bg-[rgba(var(--background-end-rgb),0.8)] backdrop-blur-sm z-40 rounded-md">
+                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div>
                     </div>
                 )}
 
-                {/* Render content only if user is loaded and data is available */} 
+                {/* Error Display (should be below overlay) */} 
+                {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
+                     <div className="mb-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                         {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
+                         <div className='text-center sm:text-left'>
+                             {fetchError === 'API_KEY_REQUIRED' ? (
+                                 <>
+                                     <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
+                                     <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
+                                 </> 
+                             ) : (
+                                 <>
+                                     <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
+                                     <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
+                                 </> 
+                             )}
+                         </div>
+                     </div>
+                 )}
+
+                {/* Render content only if user is loaded and data is available (should be below overlay) */} 
                 {user && !isLoading && !fetchError && playerData?.player && (
                      <OpenUnitContext.Provider value={openUnitContextValue}> 
-                         {/* Breadcrumbs - Rendered above the section content */} 
+                         {/* Breadcrumbs */} 
                          <div className="mb-4"> 
                              <Breadcrumbs items={breadcrumbs} /> 
                          </div> 
-
                          {/* Conditionally Rendered Section Content */} 
                          <div className="w-full max-w-6xl mx-auto"> 
+                            {/* Render Dashboard Overview */} 
+                            {selectedSectionId === 'dashboard' && 
+                                <DashboardOverview 
+                                    playerData={playerData}
+                                    allSeasonsRaidData={allSeasonsRaidData}
+                                    tacticusUserId={tacticusUserId}
+                                    units={playerData?.player?.units}
+                                />
+                            }
+                            {/* Render other sections */} 
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
                             {selectedSectionId === 'guild' && <GuildAffiliationSection guildData={guildData} />}
                             {selectedSectionId === 'raidIntel' && 
@@ -627,10 +667,20 @@ export default function Home() {
                                     heroNameMap={heroNameMap}
                                     unitDetailsMap={unitDetailsMap}
                                     updateBreadcrumbs={setBreadcrumbs}
-                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: sections.find(s => s.id === 'raidIntel')?.title || 'Raid Intel', onClick: resetRaidIntelView }}
+                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Raid Intel' /* Fallback */, onClick: resetRaidIntelView }}
                                 />
                             }
-                            {selectedSectionId === 'armoury' && <ArmouryStoresSection inventory={playerData?.player?.inventory} />}
+                            {selectedSectionId === 'armoury' && 
+                                <ArmouryStoresSection 
+                                    inventory={playerData?.player?.inventory} 
+                                    updateBreadcrumbs={setBreadcrumbs} 
+                                    // Ensure baseBreadcrumb is passed correctly
+                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Armoury & Stores', onClick: resetArmouryView }}
+                                    // Pass the state and setter down
+                                    selectedCategory={selectedArmouryCategory}
+                                    onSelectCategory={setSelectedArmouryCategory}
+                                />
+                            }
                             {selectedSectionId === 'missions' && <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />}
                             {selectedSectionId === 'roster' && 
                                 <CombatUnitsSection 
@@ -653,16 +703,9 @@ export default function Home() {
                      </OpenUnitContext.Provider> 
                 )}
                 
-                {/* Fallback message if no data */} 
+                {/* Fallback message if no data (should be below overlay) */} 
                 {user && !isLoading && !fetchError && !playerData?.player && (
                     <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
-                )}
-
-                {/* Loading indicator for manual refresh */} 
-                {isManualRefreshing && (
-                    <div className="absolute inset-0 flex justify-center items-center bg-black/50 z-40">
-                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div>
-                    </div>
                 )}
             </main>
         </div>

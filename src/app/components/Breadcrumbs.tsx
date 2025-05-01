@@ -18,8 +18,8 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items }) => {
     }
 
     return (
-        <nav aria-label="Breadcrumb" className="mb-4">
-            <ol className="flex items-center space-x-1 text-sm text-[rgb(var(--foreground-rgb),0.7)]">
+        <nav aria-label="Breadcrumb">
+            <ol className="flex items-center space-x-1 text-sm text-[rgb(var(--foreground-rgb),0.7)] leading-none">
                 {items.map((item, index) => (
                     <li key={index} className="flex items-center">
                         {index > 0 && (

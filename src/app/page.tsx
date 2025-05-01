@@ -155,13 +155,13 @@ export default function Home() {
   const resetArmouryView = useCallback(() => {
       // Reset the category state in page.tsx
       setSelectedArmouryCategory('all'); 
-      // The useEffect below will handle resetting the breadcrumb based on selectedSectionId
-      // We could also explicitly set breadcrumbs here if needed, but useEffect is cleaner
-      // const section = sections.find(sec => sec.id === 'armoury');
-      // if (section) {
-      //     setBreadcrumbs([{ label: section.title, onClick: resetArmouryView }]);
-      // }
-  }, []);
+      // Explicitly reset the breadcrumbs to the base level for Armoury
+      const section = sections.find(sec => sec.id === 'armoury');
+      if (section) {
+          // Create the base breadcrumb item again, ensuring onClick is set
+          setBreadcrumbs([{ label: section.title, onClick: resetArmouryView }]);
+      }
+  }, []); // Dependencies are likely still empty, adjust if section data changes
 
   // --- Memoized Data for Display --- 
   const { filteredAndSortedUnits, availableAlliances, availableFactions } = useMemo(() => {
@@ -602,16 +602,26 @@ export default function Home() {
   // We need user to be defined to proceed here
   
   return (
-    <> 
-        {/* PageHeader is rendered first, only when logged in */}
+    // Outer container to manage vertical layout of Header, Breadcrumbs, and Content
+    <div className="flex flex-col h-screen">
+        {/* PageHeader remains at the top */}
         <PageHeader 
-            user={user} 
+            user={user}
             isLoading={isLoading}
             isManualRefreshing={isManualRefreshing}
             handleManualRefresh={handleManualRefresh} 
         />
+        
+        {/* Breadcrumb Row - Added between Header and Main Content */}
+        {/* Only show breadcrumbs if user is logged in and data might be available */}
+        {user && (
+            <div className="border-t border-b border-[rgb(var(--border-color))] px-6 py-1 flex-shrink-0">
+                <Breadcrumbs items={breadcrumbs} />
+            </div>
+        )}
 
-        {/* Main content area with Sidebar, only shown when logged in */}
+        {/* Container for Sidebar + Main Content Area */}
+        {/* This takes the remaining height */}
         <div className="flex flex-1 overflow-hidden"> 
             {/* Sidebar */} 
             <SideNavMenu 
@@ -626,15 +636,15 @@ export default function Home() {
             />
 
             {/* Main Content Area */} 
-            <main className="relative flex-1 overflow-y-auto p-4 md:p-8 pt-0"> 
-                {/* Loading indicator for manual refresh (inside main content) */} 
+            <main className="relative flex-1 overflow-y-auto p-4 md:p-8 pt-4"> {/* Adjusted pt potentially */}
+                {/* Loading indicator for manual refresh (inside main content) */}
                 {isManualRefreshing && (
                     <div className="absolute inset-0 flex justify-center items-center bg-[rgba(var(--background-end-rgb),0.8)] backdrop-blur-sm z-40 rounded-md">
                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div>
                     </div>
                 )}
                 
-                {/* Error Display (only shown if logged in but fetch failed) */} 
+                {/* Error Display */} 
                 {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
                      <div className="mb-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
                           {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
@@ -654,18 +664,13 @@ export default function Home() {
                      </div>
                  )}
 
-                {/* Data Loading Spinner (Initial Data Load, different from manual refresh) */} 
-                {isLoading && !isManualRefreshing && !fetchError && (
-                   <div className="flex justify-center items-center py-10">
-                       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Acquiring Data Feed..."></div>
-                   </div> 
-                )}
-
-                {/* Render content only if logged in, data loaded, and no error */} 
+                {/* Render content only if logged in and potentially loaded */}
+                {/* Login check is already done above, focus on data loading/error here */}
                 {!isLoading && !fetchError && playerData?.player && (
                      <OpenUnitContext.Provider value={openUnitContextValue}> 
-                         {/* Breadcrumbs */} 
-                         <div className="mb-4"> <Breadcrumbs items={breadcrumbs} /> </div> 
+                         {/* Breadcrumbs - REMOVED from here */}
+                         {/* <div className="mb-4"> <Breadcrumbs items={breadcrumbs} /> </div> */}
+                         
                          {/* Conditionally Rendered Section Content */} 
                          <div className="w-full max-w-6xl mx-auto"> 
                             {selectedSectionId === 'dashboard' && <DashboardOverview 
@@ -722,12 +727,19 @@ export default function Home() {
                      </OpenUnitContext.Provider> 
                 )}
                 
-                {/* Fallback message if logged in but no player data (e.g., API key missing after successful login) */}
-                {!isLoading && !fetchError && !playerData?.player && (
+                {/* Data Loading Spinner (Initial Data Load, different from manual refresh) */}
+                {isLoading && !isManualRefreshing && !fetchError && user && (
+                     <div className="flex justify-center items-center py-10">
+                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Acquiring Data Feed..."></div>
+                     </div> 
+                )}
+                
+                {/* Fallback message if logged in but no player data */}
+                {!isLoading && !fetchError && !playerData?.player && user && (
                      <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
                 )}
             </main>
         </div>
-    </>
+    </div>
   );
 }

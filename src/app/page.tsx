@@ -32,6 +32,21 @@ import MissionProgressSection from './components/MissionProgressSection';
 // Import new component
 import CombatUnitsSection from './components/CombatUnitsSection';
 
+// Import necessary icons for SideNavMenu
+import {
+    UserCircleIcon,
+    ShieldCheckIcon,
+    ChartBarIcon,
+    ArchiveBoxIcon,
+    ClipboardDocumentListIcon,
+    AdjustmentsHorizontalIcon,
+} from '@heroicons/react/24/outline';
+
+// Import new components
+import SideNavMenu from './components/SideNavMenu';
+// Import Breadcrumbs
+import Breadcrumbs, { BreadcrumbItem } from './components/Breadcrumbs';
+
 // --- Context for Opened Unit Details --- 
 interface OpenUnitContextType {
   openUnitIds: Set<string>;
@@ -60,6 +75,16 @@ interface SortCriterion {
   direction: SortDirection;
 }
 
+// Define Sections for SideNavMenu
+const sections = [
+  { id: 'vitals', title: 'Player Vitals', icon: <UserCircleIcon className="h-5 w-5" /> },
+  { id: 'guild', title: 'Guild Affiliation', icon: <ShieldCheckIcon className="h-5 w-5" /> },
+  { id: 'raidIntel', title: 'Guild Raid Intel', icon: <ChartBarIcon className="h-5 w-5" /> },
+  { id: 'armoury', title: 'Armoury & Stores', icon: <ArchiveBoxIcon className="h-5 w-5" /> },
+  { id: 'missions', title: 'Mission Progress', icon: <ClipboardDocumentListIcon className="h-5 w-5" /> },
+  { id: 'roster', title: 'Combat Roster', icon: <AdjustmentsHorizontalIcon className="h-5 w-5" /> }
+];
+
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { setLastApiResponse, setIsPopupOpen } = useDebug();
@@ -87,6 +112,11 @@ export default function Home() {
   // State for managing Combat Units collapsible section itself
   const [isCombatUnitsOpen, setIsCombatUnitsOpen] = useState(false);
 
+  // --- NEW State for UI Structure ---
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0].id);
+  // State for breadcrumbs 
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]); 
+
   // Function to toggle a unit's open state
   const toggleUnitOpen = useCallback((unitId: string) => {
       setOpenUnitIds(prevOpenIds => {
@@ -104,6 +134,16 @@ export default function Home() {
   const openCombatUnitsSection = useCallback(() => {
       setIsCombatUnitsOpen(true);
   }, []);
+
+  // --- Function to reset Raid Intel view (used by breadcrumb onClick) ---
+  const resetRaidIntelView = useCallback(() => {
+      setSelectedSeason('all');
+      const raidIntelSection = sections.find(sec => sec.id === 'raidIntel');
+      if (raidIntelSection) {
+          // Explicitly define the onClick here to ensure it has the correct reference
+          setBreadcrumbs([{ label: raidIntelSection.title, onClick: resetRaidIntelView }]);
+      }
+  }, []); // Keep dependencies empty unless specific state is needed inside
 
   // --- Memoized Data for Display --- 
   const { filteredAndSortedUnits, availableAlliances, availableFactions } = useMemo(() => {
@@ -492,6 +532,25 @@ export default function Home() {
   // --- Render Logic --- 
   const isLoading = authLoading || apiKeyStatusLoading || isFetchingBaseData || isFetchingSeasonData || isManualRefreshing;
 
+  // --- Effect to update breadcrumbs when top-level section changes --- 
+  useEffect(() => {
+    const currentSection = sections.find(sec => sec.id === selectedSectionId);
+    if (currentSection) {
+        let baseOnClick: (() => void) | undefined = undefined;
+        if (selectedSectionId === 'raidIntel') {
+            baseOnClick = resetRaidIntelView;
+        } 
+        // Define onClick handlers for other sections if they implement drill-down
+
+        setBreadcrumbs([{ label: currentSection.title, onClick: baseOnClick }]);
+    }
+    // Reset scroll position when changing main sections
+    const mainContentArea = document.querySelector('main.flex-1.overflow-y-auto');
+    if (mainContentArea) {
+        mainContentArea.scrollTop = 0;
+    }
+  }, [selectedSectionId, resetRaidIntelView]); // Add resetRaidIntelView dependency
+
   if (!user && !authLoading) {
     return <div className="text-center mt-10 text-lg text-[rgb(var(--foreground-rgb),0.8)]">++ Authentication Required: Transmit Identification Credentials via Astropathic Relay ++</div>;
   }
@@ -501,119 +560,112 @@ export default function Home() {
   }
 
   return (
-    <main className="flex flex-col items-center p-4 md:p-8">
-      {/* Header - Use PageHeader component, which might need internal text adjustments too */}
-      <PageHeader 
-        user={user} 
-        isLoading={isLoading}
-        isManualRefreshing={isManualRefreshing}
-        handleManualRefresh={handleManualRefresh} 
-        // Pass thematic text down if PageHeader accepts it, or edit PageHeader directly
-      />
+    <div className="flex flex-col h-screen"> {/* Ensure outer container takes full height */} 
+        {/* Header stays at the top */} 
+        <PageHeader 
+            user={user} 
+            isLoading={isLoading}
+            isManualRefreshing={isManualRefreshing}
+            handleManualRefresh={handleManualRefresh} 
+        />
 
-      {/* Display errors regardless of other states if fetchError exists */} 
-      {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
-           <div className="my-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
-               {fetchError === 'API_KEY_REQUIRED' ? (
-                   <KeyRound className="text-yellow-400 flex-shrink-0" size={24} />
-               ) : (
-                   <AlertTriangle className="text-red-400 flex-shrink-0" size={24} />
-               )}
-               <div className='text-center sm:text-left'>
-                  {fetchError === 'API_KEY_REQUIRED' ? (
-                      <>
-                         <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
-                         <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
-                      </>
-                  ) : (
-                      <>
-                          <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
-                          <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
-                     </>
-                  )}
-                </div>
-            </div>
-      )}
+        <div className="flex flex-1 overflow-hidden"> {/* Main content area with sidebar */} 
+            {/* Sidebar */} 
+            <SideNavMenu 
+                sections={sections}
+                selectedSectionId={selectedSectionId}
+                onSelectSection={(id) => {
+                    setSelectedSectionId(id);
+                    // Also reset season if navigating away from raidIntel
+                    if (selectedSectionId === 'raidIntel' && id !== 'raidIntel') {
+                         resetRaidIntelView(); // Reset the raid view state
+                    }
+                }}
+            />
 
-      {/* Render content only if user is loaded, not loading, no critical error, and player data exists */} 
-      {user && !isLoading && !fetchError && playerData?.player && (
-        <OpenUnitContext.Provider value={openUnitContextValue}>
-            <div key={user.uid} className="w-full max-w-6xl">
-                {/* Grid with metrics - Replaced with component */}
-                <MetricsGrid 
-                    playerData={playerData}
-                    allSeasonsRaidData={allSeasonsRaidData}
-                    tacticusUserId={tacticusUserId}
-                />
+            {/* Main Content Area */} 
+            <main className="flex-1 overflow-y-auto p-4 md:p-8"> 
+                {/* Error Display */} 
+                {fetchError && !isManualRefreshing && !isFetchingBaseData && !isFetchingSeasonData && (
+                    <div className="mb-4 p-4 border border-red-500/50 rounded-lg bg-red-900/30 text-red-300 w-full max-w-4xl mx-auto flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                        {fetchError === 'API_KEY_REQUIRED' ? <KeyRound className="text-yellow-400 flex-shrink-0 h-6 w-6" /> : <AlertTriangle className="text-red-400 flex-shrink-0 h-6 w-6" />}
+                        <div className='text-center sm:text-left'>
+                            {fetchError === 'API_KEY_REQUIRED' ? (
+                                <>
+                                    <p className="font-semibold text-yellow-200 text-lg">++ Astropathic Link Severed: Vox Key Configuration Required ++</p>
+                                    <p className="text-sm mt-1">Operative Vox Key missing or invalid. Proceed to <Link href="/settings" className="font-bold underline hover:text-yellow-100">Interface Calibration</Link> to establish connection.</p>
+                                </> 
+                            ) : (
+                                <>
+                                    <p className="font-semibold text-red-200 text-lg">++ Data Feed Corruption Detected ++</p>
+                                    <p className="text-sm mt-1">Error acquiring data stream: {fetchError}. Attempting re-transmission or consult Cogitator Log.</p>
+                                </> 
+                            )}
+                        </div>
+                    </div>
+                )}
 
-                {/* Alliance Distribution - Replaced with component */}
-                <AllianceDistribution units={playerData?.player?.units} />
+                {/* Render content only if user is loaded and data is available */} 
+                {user && !isLoading && !fetchError && playerData?.player && (
+                     <OpenUnitContext.Provider value={openUnitContextValue}> 
+                         {/* Breadcrumbs - Rendered above the section content */} 
+                         <div className="mb-4"> 
+                             <Breadcrumbs items={breadcrumbs} /> 
+                         </div> 
 
-                {/* Season Selector and Boss Performance are now INSIDE GuildRaidIntelSection */} 
+                         {/* Conditionally Rendered Section Content */} 
+                         <div className="w-full max-w-6xl mx-auto"> 
+                            {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
+                            {selectedSectionId === 'guild' && <GuildAffiliationSection guildData={guildData} />}
+                            {selectedSectionId === 'raidIntel' && 
+                                <GuildRaidIntelSection 
+                                    raidDataForDisplay={raidDataForDisplay} 
+                                    selectedSeason={selectedSeason} 
+                                    availableSeasons={availableSeasons}
+                                    setSelectedSeason={setSelectedSeason}
+                                    playerData={playerData}
+                                    heroNameMap={heroNameMap}
+                                    unitDetailsMap={unitDetailsMap}
+                                    updateBreadcrumbs={setBreadcrumbs}
+                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: sections.find(s => s.id === 'raidIntel')?.title || 'Raid Intel', onClick: resetRaidIntelView }}
+                                />
+                            }
+                            {selectedSectionId === 'armoury' && <ArmouryStoresSection inventory={playerData?.player?.inventory} />}
+                            {selectedSectionId === 'missions' && <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />}
+                            {selectedSectionId === 'roster' && 
+                                <CombatUnitsSection 
+                                    filteredAndSortedUnits={filteredAndSortedUnits}
+                                    totalUnitsCount={playerData?.player?.units?.length ?? 0}
+                                    availableAlliances={availableAlliances}
+                                    availableFactions={availableFactions}
+                                    selectedAlliances={selectedAlliances}
+                                    setSelectedAlliances={setSelectedAlliances}
+                                    selectedFactions={selectedFactions}
+                                    setSelectedFactions={setSelectedFactions}
+                                    primarySort={primarySort}
+                                    setPrimarySort={setPrimarySort}
+                                    secondarySort={secondarySort}
+                                    setSecondarySort={setSecondarySort}
+                                    heroPerformanceData={heroPerformanceData}
+                                />
+                            }
+                         </div>
+                     </OpenUnitContext.Provider> 
+                )}
+                
+                {/* Fallback message if no data */} 
+                {user && !isLoading && !fetchError && !playerData?.player && (
+                    <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
+                )}
 
-                <h2 className="text-2xl font-semibold text-[rgb(var(--primary-color))] mb-4 border-b border-[rgb(var(--border-color))] pb-2">Detailed Intelligence Report</h2>
-
-                {/* Player Vitals - Now wrapped by Provider */}
-                <PlayerVitalsSection playerData={playerData} user={user} />
-
-                {/* Guild Affiliation - Now wrapped by Provider */}
-                <GuildAffiliationSection guildData={guildData} />
-
-                {/* Guild Raid Intel - Uses Context */} 
-                <GuildRaidIntelSection 
-                    raidDataForDisplay={raidDataForDisplay} 
-                    selectedSeason={selectedSeason} 
-                    availableSeasons={availableSeasons}
-                    setSelectedSeason={setSelectedSeason}
-                    playerData={playerData}
-                    heroNameMap={heroNameMap}
-                    unitDetailsMap={unitDetailsMap}
-                    // Pass thematic titles down if component accepts props
-                />
-
-                {/* Armoury & Stores - Now wrapped by Provider */}
-                <ArmouryStoresSection inventory={playerData?.player?.inventory} />
-
-                {/* Mission Progress & Resources - Now wrapped by Provider */}
-                <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />
-
-                {/* Combat Units - Uses Context */}
-                <CollapsibleSection 
-                  title={`Combat Roster (${filteredAndSortedUnits.length} / ${playerData?.player?.units?.length ?? 0})`} 
-                  icon={<Target size={20}/>}
-                  isOpen={isCombatUnitsOpen}
-                  onToggleRequest={() => setIsCombatUnitsOpen(prev => !prev)}
-                >
-                  <CombatUnitsSection 
-                      filteredAndSortedUnits={filteredAndSortedUnits}
-                      totalUnitsCount={playerData?.player?.units?.length ?? 0}
-                      availableAlliances={availableAlliances}
-                      availableFactions={availableFactions}
-                      selectedAlliances={selectedAlliances}
-                      setSelectedAlliances={setSelectedAlliances}
-                      selectedFactions={selectedFactions}
-                      setSelectedFactions={setSelectedFactions}
-                      primarySort={primarySort}
-                      setPrimarySort={setPrimarySort}
-                      secondarySort={secondarySort}
-                      setSecondarySort={setSecondarySort}
-                      heroPerformanceData={heroPerformanceData}
-                      // Pass thematic text for filters/sorts if component accepts props
-                  />
-                </CollapsibleSection>
-            </div>
-        </OpenUnitContext.Provider>
-      )}
-
-      {/* Show loading indicator inside if manual refresh is happening */} 
-      {isManualRefreshing && (
-          <div className="flex justify-center items-center p-10"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div></div>
-      )}
-
-      {/* Fallback if user is loaded but no player data (e.g., API key missing AFTER initial load or fetch failed) */} 
-      {user && !isLoading && !fetchError && !playerData?.player && (
-          <p className="text-lg text-[rgb(var(--foreground-rgb),0.8)] text-center mt-10">++ No Valid Operative Data Received - Check Vox Key Configuration ++</p>
-      )}
-    </main>
+                {/* Loading indicator for manual refresh */} 
+                {isManualRefreshing && (
+                    <div className="absolute inset-0 flex justify-center items-center bg-black/50 z-40">
+                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[rgb(var(--primary-color))]" title="Refreshing Data Stream..."></div>
+                    </div>
+                )}
+            </main>
+        </div>
+    </div>
   );
 }

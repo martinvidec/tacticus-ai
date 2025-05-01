@@ -6,6 +6,7 @@ import SeasonSelector from './SeasonSelector';
 import BossPerformanceSection from './BossPerformanceSection';
 import { useOpenUnit } from '../page'; // Adjust path if context is defined elsewhere
 import HeroPowerRankingChart from './charts/HeroPowerRankingChart';
+import { BreadcrumbItem } from './Breadcrumbs'; // Import BreadcrumbItem type
 
 interface GuildRaidIntelSectionProps {
   raidDataForDisplay: Record<number, GuildRaidResponse>;
@@ -15,6 +16,8 @@ interface GuildRaidIntelSectionProps {
   playerData: PlayerDataResponse | null;
   heroNameMap: Map<string, string>;
   unitDetailsMap: Map<string, { name?: string, faction?: string, grandAlliance?: string }>;
+  updateBreadcrumbs: (newBreadcrumbs: BreadcrumbItem[]) => void;
+  baseBreadcrumb: BreadcrumbItem; // Pass the base breadcrumb item for this section
 }
 
 const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
@@ -25,6 +28,8 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
   playerData,
   heroNameMap,
   unitDetailsMap,
+  updateBreadcrumbs,
+  baseBreadcrumb, // Receive the base breadcrumb
 }) => {
   const title = `Guild Raid Intel & Performance`;
   const { toggleUnitOpen, openCombatUnitsSection } = useOpenUnit();
@@ -75,12 +80,30 @@ const GuildRaidIntelSection: React.FC<GuildRaidIntelSectionProps> = ({
     }
   };
 
+  // Handler for season change that also updates breadcrumbs
+  const handleSeasonChange = (newSeason: number | 'all') => {
+      // Call the original state setter from page.tsx
+      setSelectedSeason(newSeason);
+
+      // Update breadcrumbs based on the new selection
+      if (newSeason === 'all') {
+          // Reset to base breadcrumb when 'all' is selected
+          updateBreadcrumbs([baseBreadcrumb]);
+      } else {
+          // Add the selected season as a new breadcrumb level
+          updateBreadcrumbs([
+              baseBreadcrumb, // Keep the clickable base level
+              { label: `Season ${newSeason}` } // Add the non-clickable season level
+          ]);
+      }
+  };
+
   return (
     <CollapsibleSection title={title} icon={<Swords size={20} />}>
       <SeasonSelector 
         availableSeasons={availableSeasons}
         selectedSeason={selectedSeason}
-        setSelectedSeason={setSelectedSeason}
+        setSelectedSeason={handleSeasonChange}
       />
 
       <BossPerformanceSection 

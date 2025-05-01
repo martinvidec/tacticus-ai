@@ -50,14 +50,32 @@ const GuildAffiliationSection: React.FC<GuildAffiliationSectionProps> = ({ guild
               </tr>
             </thead>
             <tbody>
-              {guild.members.map((member: GuildMember) => (
-                <tr key={member.userId} className="border-b border-[rgba(var(--border-color),0.5)] hover:bg-[rgba(var(--primary-color),0.05)]">
-                  <td className="p-1 font-mono text-[10px]" title={member.userId}>{member.userId?.substring(0, 8)}...</td>
-                  <td className="p-1">{formatRole(member.role)}</td>
-                  <td className="p-1">{member.level}</td>
-                  <td className="p-1">{member.lastActivityOn ? new Date(member.lastActivityOn * 1000).toLocaleDateString() : 'N/A'}</td>
-                </tr>
-              ))}
+              {guild.members.map((member: GuildMember) => {
+                  let displayDate = 'N/A';
+                  // Check if it's a valid, positive number
+                  if (member.lastActivityOn && typeof member.lastActivityOn === 'number' && member.lastActivityOn > 0) {
+                      // REMOVE the * 1000 multiplication - assume timestamp is already in milliseconds
+                      const date = new Date(member.lastActivityOn); 
+                      if (!isNaN(date.getTime())) { // Check if the date is valid
+                          displayDate = date.toLocaleDateString();
+                      } else {
+                         console.warn(`Invalid date created from timestamp (ms?): ${member.lastActivityOn}`);
+                      }
+                  } else if (member.lastActivityOn) {
+                      // Log if it's not a positive number or has a different type
+                       console.warn(`Invalid lastActivityOn timestamp type or value: ${member.lastActivityOn} (Type: ${typeof member.lastActivityOn})`);
+                  }
+                  
+                  return (
+                    <tr key={member.userId} className="border-b border-[rgba(var(--border-color),0.5)] hover:bg-[rgba(var(--primary-color),0.05)]">
+                      <td className="p-1 font-mono text-[10px]" title={member.userId}>{member.userId?.substring(0, 8)}...</td>
+                      <td className="p-1">{formatRole(member.role)}</td>
+                      <td className="p-1">{member.level}</td>
+                      {/* Use the validated and formatted date */}
+                      <td className="p-1">{displayDate}</td> 
+                    </tr>
+                  );
+              })}
             </tbody>
           </table>
         </div>

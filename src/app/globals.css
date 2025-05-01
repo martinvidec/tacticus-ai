@@ -55,4 +55,18 @@ body {
   .btn-terminate:disabled { /* Optional: Style for disabled state */
       @apply opacity-50 cursor-not-allowed;
   }
+
+  /* --- BEGIN Dark Mode Chart Axis Fix --- */
+  /* Override inline fill="" on axis labels */
+  html.dark .recharts-cartesian-axis-tick-value tspan {
+    /* Use rgba() syntax for compatibility */
+    fill: rgba(var(--foreground-rgb), 0.8) !important; 
+  }
+
+  /* Override stroke color for axis lines */
+   html.dark .recharts-cartesian-axis-line {
+     /* Use border color, !important */
+     stroke: rgb(var(--border-color)) !important; 
+   }
+   /* --- END Dark Mode Chart Axis Fix --- */
 }

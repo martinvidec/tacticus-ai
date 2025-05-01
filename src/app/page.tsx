@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useDebug } from '@/lib/contexts/DebugContext';
 import { PlayerDataResponse, GuildResponse, GuildRaidResponse, ApiError, Unit, Inventory, Progress, CampaignProgress, CampaignLevel, UnitItem, Ability, Item, Shard, XpBook, AbilityBadge, Component, ForgeBadge, Orb, GrandAlliance, Faction, Player, GuildMember } from '@/lib/types';
 import { ChevronDown, ChevronUp, Target, ShieldCheck, Box, TrendingUp, ArrowUpDown, Filter, Users, Swords, KeyRound, AlertTriangle, ArrowUp, ArrowDown, SettingsIcon, RefreshCw } from 'lucide-react';
-import { Select, SelectItem, MultiSelect, MultiSelectItem, Card, Title, Button, TextInput, Metric, Grid } from '@tremor/react';
+import { Select, SelectItem, MultiSelect, MultiSelectItem, Card, Title, Button, TextInput, Metric, Grid, LineChart } from '@tremor/react';
 import { getUserApiKeyStatus } from '@/lib/actions';
 import PageHeader from './components/PageHeader';
 import AuthButton from './components/AuthButton';
@@ -90,6 +90,34 @@ const sections = [
   { id: 'missions', title: 'Mission Progress', icon: <ClipboardDocumentListIcon className="h-5 w-5" /> },
   { id: 'roster', title: 'Combat Roster', icon: <AdjustmentsHorizontalIcon className="h-5 w-5" /> }
 ];
+
+// Interface for the USER'S processed team data
+export interface MyMostUsedTeamData {
+    season: number;
+    members: { 
+        id: string; 
+        name: string; 
+        rank: number; 
+        stars: number; // progressionIndex
+    }[];
+    powerData: { 
+        time: Date; 
+        totalPower: number; 
+        heroPowers: { [unitId: string]: number }; 
+    }[];
+    usageCount: number;
+}
+
+// Interface for ONE of the Guild's Top Teams
+export interface GuildTopTeamData {
+    rank: number; // 1, 2, or 3
+    teamId: string; // Comma-separated sorted IDs
+    usageCount: number;
+    members: { 
+        id: string; 
+        name: string; 
+    }[];
+}
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -549,6 +577,167 @@ export default function Home() {
     );
   };
   
+  // --- NEW Memo: MY Most Used Team Last Season (Filtered by User) ---
+  const myMostUsedTeamLastSeason = useMemo((): MyMostUsedTeamData | null => {
+      console.log("[Memo] Calculating myMostUsedTeamLastSeason");
+      // Ensure we have the user ID to filter by!
+      if (!tacticusUserId || !allSeasonsRaidData || Object.keys(allSeasonsRaidData).length === 0 || !playerData?.player?.units) {
+          console.log("[Memo] Insufficient data for myMostUsedTeamLastSeason (missing userId, raidData, or playerData)");
+          return null;
+      }
+
+      const latestSeason = Math.max(...Object.keys(allSeasonsRaidData).map(Number));
+      const latestSeasonData = allSeasonsRaidData[latestSeason];
+
+      if (!latestSeasonData || !latestSeasonData.entries || latestSeasonData.entries.length === 0) {
+          console.log(`[Memo] No entries found for latest season ${latestSeason}`);
+          return null;
+      }
+
+      const teamCounts = new Map<string, number>();
+      const teamPowerSamples = new Map<string, { time: Date; totalPower: number; heroPowers: { [unitId: string]: number } }[]>();
+
+      // *** Filter entries by tacticusUserId ***
+      const myEntries = latestSeasonData.entries.filter(entry => entry.userId === tacticusUserId);
+
+      if (myEntries.length === 0) {
+          console.log(`[Memo] No entries found for user ${tacticusUserId} in season ${latestSeason}`);
+          return null;
+      }
+
+      // Process only MY entries
+      for (const entry of myEntries) { 
+          if (entry.heroDetails && entry.heroDetails.length === 5) {
+              const unitIds = entry.heroDetails.map(h => h.unitId).sort();
+              const teamIdentifier = unitIds.join(',');
+              
+              teamCounts.set(teamIdentifier, (teamCounts.get(teamIdentifier) || 0) + 1);
+
+              const startedOnNum = typeof entry.startedOn === 'string' ? parseInt(entry.startedOn, 10) : entry.startedOn;
+              if (startedOnNum && !isNaN(startedOnNum)) {
+                  const entryTime = new Date(startedOnNum * 1000);
+                  if (!isNaN(entryTime.getTime())) {
+                      let totalPower = 0;
+                      const currentHeroPowers: { [unitId: string]: number } = {};
+                      entry.heroDetails.forEach(hero => {
+                          const power = hero.power || 0;
+                          totalPower += power;
+                          if (hero.unitId) { 
+                              currentHeroPowers[hero.unitId] = power;
+                          }
+                      });
+                      
+                      const samples = teamPowerSamples.get(teamIdentifier) || [];
+                      samples.push({ time: entryTime, totalPower, heroPowers: currentHeroPowers }); 
+                      teamPowerSamples.set(teamIdentifier, samples);
+                  }
+              }
+          }
+      }
+
+      if (teamCounts.size === 0) {
+          console.log(`[Memo] No 5-hero teams found for user ${tacticusUserId} in season ${latestSeason}`);
+          return null;
+      }
+
+      let mostFrequentIdentifier = '';
+      let maxCount = 0;
+      teamCounts.forEach((count, identifier) => { 
+          if (count > maxCount) {
+              maxCount = count;
+              mostFrequentIdentifier = identifier;
+          }
+      });
+
+      if (!mostFrequentIdentifier) {
+          console.log(`[Memo] No valid team identifier found for user ${tacticusUserId} in season ${latestSeason}`);
+          return null;
+      }
+
+      const teamUnitIds = mostFrequentIdentifier.split(',');
+      const members = teamUnitIds.map(id => {
+          const unitData = playerData.player.units.find(u => u.id === id);
+          return {
+              id: id,
+              name: unitData?.name || id,
+              rank: unitData?.rank ?? 0,
+              stars: unitData?.progressionIndex ?? 0
+          };
+      });
+
+      const powerData = teamPowerSamples.get(mostFrequentIdentifier) || [];
+      powerData.sort((a, b) => a.time.getTime() - b.time.getTime());
+
+      console.log(`[Memo] Finished myMostUsedTeamLastSeason for user ${tacticusUserId}, season ${latestSeason}. Found team: ${mostFrequentIdentifier} used ${maxCount} times.`);
+      return {
+          season: latestSeason,
+          members,
+          powerData,
+          usageCount: maxCount
+      };
+
+  }, [allSeasonsRaidData, playerData, tacticusUserId]); // Added tacticusUserId dependency
+
+  // --- NEW Memo: Guild Top 3 Most Used Teams Last Season (All Users) ---
+  const guildTopTeamsLastSeason = useMemo((): GuildTopTeamData[] | null => {
+      console.log("[Memo] Calculating guildTopTeamsLastSeason");
+      if (!allSeasonsRaidData || Object.keys(allSeasonsRaidData).length === 0 || !playerData?.player?.units) {
+          console.log("[Memo] Insufficient data for guildTopTeamsLastSeason");
+          return null;
+      }
+
+      const latestSeason = Math.max(...Object.keys(allSeasonsRaidData).map(Number));
+      const latestSeasonData = allSeasonsRaidData[latestSeason];
+
+      if (!latestSeasonData || !latestSeasonData.entries || latestSeasonData.entries.length === 0) {
+          console.log(`[Memo] No entries found for latest season ${latestSeason} (guild-wide)`);
+          return null;
+      }
+
+      const teamCounts = new Map<string, number>();
+
+      // Iterate through ALL entries (no user filter)
+      for (const entry of latestSeasonData.entries) {
+          if (entry.heroDetails && entry.heroDetails.length === 5) {
+              const unitIds = entry.heroDetails.map(h => h.unitId).sort();
+              const teamIdentifier = unitIds.join(',');
+              teamCounts.set(teamIdentifier, (teamCounts.get(teamIdentifier) || 0) + 1);
+          }
+      }
+
+      if (teamCounts.size === 0) {
+          console.log(`[Memo] No 5-hero teams found in season ${latestSeason} (guild-wide)`);
+          return null;
+      }
+
+      // Convert map to array, sort by count descending, take top 3
+      const sortedTeams = Array.from(teamCounts.entries())
+          .sort(([, countA], [, countB]) => countB - countA)
+          .slice(0, 3);
+
+      // Map to the desired output structure, fetching member names
+      const topTeamsData = sortedTeams.map(([teamId, count], index): GuildTopTeamData => {
+          const teamUnitIds = teamId.split(',');
+          const members = teamUnitIds.map(id => {
+              const unitData = playerData.player.units.find(u => u.id === id);
+              return {
+                  id: id,
+                  name: unitData?.name || id,
+              };
+          });
+          return {
+              rank: index + 1,
+              teamId,
+              usageCount: count,
+              members,
+          };
+      });
+
+      console.log(`[Memo] Finished guildTopTeamsLastSeason for season ${latestSeason}. Found ${topTeamsData.length} top teams.`);
+      return topTeamsData;
+
+  }, [allSeasonsRaidData, playerData]); // Depends on raid data and player data (for names)
+
   // --- Render Logic --- 
   const isLoading = authLoading || apiKeyStatusLoading || isFetchingBaseData || isFetchingSeasonData || isManualRefreshing;
 
@@ -678,6 +867,8 @@ export default function Home() {
                                 allSeasonsRaidData={allSeasonsRaidData}
                                 tacticusUserId={tacticusUserId}
                                 units={playerData?.player?.units}
+                                myMostUsedTeamData={myMostUsedTeamLastSeason}
+                                guildTopTeamsData={guildTopTeamsLastSeason}
                             />}
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
                             {selectedSectionId === 'guild' && <GuildAffiliationSection guildData={guildData} />}

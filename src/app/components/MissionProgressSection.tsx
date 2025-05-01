@@ -1,60 +1,54 @@
 import React from 'react';
 import { Progress, CampaignProgress, CampaignLevel } from '@/lib/types';
-import CollapsibleSection from './CollapsibleSection';
-import { TrendingUp, ChevronDown } from 'lucide-react';
 
 interface MissionProgressSectionProps {
   progress: Progress | null | undefined;
-  renderTokens: (tokenData: { current?: number; max?: number; regenDelayInSeconds?: number } | null | undefined, name: string) => React.ReactNode;
+  renderTokens: (tokenData: any, name: string) => React.ReactNode;
 }
 
 const MissionProgressSection: React.FC<MissionProgressSectionProps> = ({ progress, renderTokens }) => {
   if (!progress) {
-    return null;
+    return <p>++ No Mission Progress Data Available ++</p>;
   }
 
-  // Check if there is any token data or campaign data to display
-  const hasTokenData = progress.arena?.tokens || progress.guildRaid?.tokens || progress.guildRaid?.bombTokens || progress.onslaught?.tokens || progress.salvageRun?.tokens;
-  const hasCampaignData = progress.campaigns && progress.campaigns.length > 0;
-
-  if (!hasTokenData && !hasCampaignData) {
-    return null; // Don't render the section if there's nothing to show
-  }
+  const renderCampaign = (campaign: CampaignProgress) => (
+    <details key={campaign.id} className="mb-2 bg-[rgba(var(--background-start-rgb),0.6)] p-2 border border-[rgba(var(--border-color),0.5)] rounded">
+      <summary className="cursor-pointer text-xs font-medium">{campaign.name} ({campaign.type})</summary>
+      <ul className="list-disc list-inside pl-4 mt-1 text-[10px]">
+        {campaign.battles?.map((battle: CampaignLevel, idx: number) => (
+          <li key={`${campaign.id}-${idx}`}>Battle {battle.battleIndex}: {battle.attemptsUsed} used, {battle.attemptsLeft} left</li>
+        ))}
+      </ul>
+    </details>
+  );
 
   return (
-    <CollapsibleSection title="Mission Progress & Resources" icon={<TrendingUp size={20} />}>
-      {hasTokenData && (
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mb-3">
-             {renderTokens(progress.arena?.tokens, 'Arena')}
-             {renderTokens(progress.guildRaid?.tokens, 'Guild Raid')}
-             {renderTokens(progress.guildRaid?.bombTokens, 'Guild Raid Bomb')}
-             {renderTokens(progress.onslaught?.tokens, 'Onslaught')}
-             {renderTokens(progress.salvageRun?.tokens, 'Salvage Run')}
-         </div>
-      )}
-      {hasCampaignData && (
-          <>
-             <h3 className="font-semibold text-base text-[rgb(var(--primary-color))] mt-2 mb-1">Campaign Logs</h3>
-             <div className="space-y-1">
-             {progress.campaigns.map((campaign: CampaignProgress) => (
-                 <details key={campaign.id} className="border border-[rgb(var(--border-color))] rounded-md overflow-hidden bg-[rgba(var(--background-end-rgb),0.5)] text-xs">
-                     <summary className="p-1 px-2 flex justify-between items-center bg-[rgba(var(--border-color),0.1)] hover:bg-[rgba(var(--border-color),0.2)] cursor-pointer font-medium text-[rgb(var(--foreground-rgb),0.95)]">
-                     <span>{campaign.name} ({campaign.type})</span>
-                     <ChevronDown size={16} className="opacity-70" />
-                     </summary>
-                     <div className="p-2 border-t border-[rgb(var(--border-color))] text-[rgb(var(--foreground-rgb),0.85)]">
-                     <ul className="list-disc list-inside ml-2 space-y-0.5">
-                         {campaign.battles.map((battle: CampaignLevel) => (
-                         <li key={battle.battleIndex}>Battle {battle.battleIndex}: {battle.attemptsUsed} used, {battle.attemptsLeft} left</li>
-                         ))}
-                     </ul>
-                     </div>
-                 </details>
-             ))}
-             </div>
-          </>
-      )}
-    </CollapsibleSection>
+    <div className="p-4 bg-[rgba(var(--highlight-bg),0.5)] border border-[rgb(var(--border-color))] rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold text-[rgb(var(--primary-color))] mb-3 border-b border-[rgb(var(--border-color))] pb-2">
+        Mission Progress & Resources
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <h4 className="text-base font-semibold text-[rgb(var(--primary-color))] mb-2">Resource Tokens</h4>
+          {renderTokens(progress.arena?.tokens, 'Arena')}
+          {renderTokens(progress.guildRaid?.tokens, 'Guild Raid')}
+          {renderTokens(progress.guildRaid?.bombTokens, 'Raid Bomb')}
+          {renderTokens(progress.onslaught?.tokens, 'Onslaught')}
+          {renderTokens(progress.salvageRun?.tokens, 'Salvage Run')}
+        </div>
+
+        <div>
+          <h4 className="text-base font-semibold text-[rgb(var(--primary-color))] mb-2">Campaign Progress</h4>
+          {progress.campaigns && progress.campaigns.length > 0 ? (
+            <div className="max-h-60 overflow-y-auto pr-2">
+              {progress.campaigns.map(renderCampaign)}
+            </div>
+          ) : (
+            <p className="text-xs text-[rgb(var(--foreground-rgb),0.7)]">No campaign data found.</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

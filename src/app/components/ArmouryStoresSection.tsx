@@ -1,6 +1,5 @@
 import React from 'react';
 import { Inventory, Item, Shard, XpBook, AbilityBadge, Component, ForgeBadge, Orb } from '@/lib/types';
-import CollapsibleSection from './CollapsibleSection';
 import { Box } from 'lucide-react';
 import { BreadcrumbItem } from './Breadcrumbs';
 
@@ -44,7 +43,7 @@ const ArmouryStoresSection: React.FC<ArmouryStoresSectionProps> = ({
     onSelectCategory
 }) => {
   if (!inventory) {
-    return null;
+    return <p>++ No Armoury Data Available ++</p>;
   }
 
   // Get categories that actually have items
@@ -59,7 +58,7 @@ const ArmouryStoresSection: React.FC<ArmouryStoresSectionProps> = ({
 
   // Don't render the section if empty (excluding potentially zero resetStones)
   if (availableCategories.length === 0 || (availableCategories.length === 1 && availableCategories[0] === 'resetStones' && !inventory.resetStones)) {
-    return null;
+    return <p>++ Armoury Appears Empty ++</p>;
   }
 
   // Handler for category selection
@@ -84,7 +83,10 @@ const ArmouryStoresSection: React.FC<ArmouryStoresSectionProps> = ({
       : inventory[selectedCategory as keyof Inventory] as any[];
 
   return (
-    <CollapsibleSection title="Armoury & Stores" icon={<Box size={20} />}>
+    <div className="p-4 bg-[rgba(var(--highlight-bg),0.5)] border border-[rgb(var(--border-color))] rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold text-[rgb(var(--primary-color))] mb-3 border-b border-[rgb(var(--border-color))] pb-2">
+            Armoury & Stores
+        </h3>
         {/* Category Tabs/Buttons */} 
         <div className="flex flex-wrap gap-2 mb-4 border-b border-[rgb(var(--border-color))] pb-2">
             <button 
@@ -131,7 +133,7 @@ const ArmouryStoresSection: React.FC<ArmouryStoresSectionProps> = ({
               <strong className="text-[rgb(var(--primary-color))]">Reset Stones:</strong> {inventory.resetStones}
           </p>
        )}
-    </CollapsibleSection>
+    </div>
   );
 };
 

@@ -21,7 +21,7 @@ import AuthButton from './components/AuthButton';
 // Import new component
 // Removed import AllianceDistribution from './components/AllianceDistribution';
 // Import refactored components
-import CollapsibleSection from './components/CollapsibleSection';
+// import CollapsibleSection from './components/CollapsibleSection';
 import PlayerVitalsSection from './components/PlayerVitalsSection';
 // Import new component
 import GuildAffiliationSection from './components/GuildAffiliationSection';
@@ -116,7 +116,7 @@ export default function Home() {
   // State for managing open units
   const [openUnitIds, setOpenUnitIds] = useState<Set<string>>(new Set());
   // State for managing Combat Units collapsible section itself
-  const [isCombatUnitsOpen, setIsCombatUnitsOpen] = useState(false);
+  // const [isCombatUnitsOpen, setIsCombatUnitsOpen] = useState(false);
 
   // --- NEW State for UI Structure ---
   const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0].id);
@@ -140,8 +140,8 @@ export default function Home() {
 
   // Function to explicitly open the Combat Units section
   const openCombatUnitsSection = useCallback(() => {
-      setIsCombatUnitsOpen(true);
-  }, []);
+      setSelectedSectionId('roster');
+  }, [setSelectedSectionId]);
 
   // --- Function to reset Raid Intel view (used by breadcrumb onClick) ---
   const resetRaidIntelView = useCallback(() => {

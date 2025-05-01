@@ -1,8 +1,10 @@
 import React from 'react';
 import { PlayerDataResponse } from '@/lib/types';
 import { useAuth } from '@/lib/contexts/AuthContext'; // To get user type
-import CollapsibleSection from './CollapsibleSection'; // Assuming CollapsibleSection is refactored or accessible
-import { ShieldCheck } from 'lucide-react';
+// Remove CollapsibleSection import
+// import CollapsibleSection from './CollapsibleSection'; // Assuming CollapsibleSection is refactored or accessible
+// Icons might still be needed for internal elements, keep imports if necessary
+// import { Target, ShieldCheck, Box, TrendingUp, ArrowUpDown, Filter, Users, Swords } from 'lucide-react';
 
 interface PlayerVitalsSectionProps {
   playerData: PlayerDataResponse | null;
@@ -10,27 +12,29 @@ interface PlayerVitalsSectionProps {
 }
 
 const PlayerVitalsSection: React.FC<PlayerVitalsSectionProps> = ({ playerData, user }) => {
-  // Don't render if player data is missing
-  if (!playerData?.player?.details) {
-    return null;
+  if (!playerData?.player) {
+    return <p>++ No Operative Vitals Data Available ++</p>; 
   }
 
+  const { details } = playerData.player;
+
+  // Return the inner content directly, wrapped in a div for structure/padding
   return (
-    <CollapsibleSection title="Player Identification & Vitals" icon={<ShieldCheck size={20}/>}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Designation:</strong> {playerData.player.details.name ?? 'N/A'}</div>
-        <div><strong className="text-[rgb(var(--primary-color))] font-semibold">ID (User):</strong> {user?.uid ?? 'N/A'}</div>
-        <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Combat Effectiveness (Power):</strong> {playerData.player.details.powerLevel?.toLocaleString() ?? 'N/A'}</div>
-        {playerData.metaData && (
-          <>
-            <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Last Sync:</strong> {new Date(playerData.metaData.lastUpdatedOn * 1000).toLocaleString()}</div>
-            <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Clearance Scopes:</strong> {playerData.metaData.scopes?.join(', ') ?? 'N/A'}</div>
-            {playerData.metaData.apiKeyExpiresOn && <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Key Deactivation:</strong> {new Date(playerData.metaData.apiKeyExpiresOn * 1000).toLocaleString()}</div>}
-            <div><strong className="text-[rgb(var(--primary-color))] font-semibold">Config Hash:</strong> <span className="text-xs break-all">{playerData.metaData.configHash ?? 'N/A'}</span></div>
-          </>
-        )}
+    <div className="p-4 bg-[rgba(var(--highlight-bg),0.5)] border border-[rgb(var(--border-color))] rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold text-[rgb(var(--primary-color))] mb-3 border-b border-[rgb(var(--border-color))] pb-2">
+          Player Identification & Vitals
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+              <p><strong className="text-[rgb(var(--primary-color))] font-medium">Call Sign:</strong> {details?.name ?? 'N/A'}</p>
+              <p><strong className="text-[rgb(var(--primary-color))] font-medium">Registered Email:</strong> {user?.email ?? 'N/A'}</p>
+          </div>
+          <div>
+               <p><strong className="text-[rgb(var(--primary-color))] font-medium">Power Level Estimate:</strong> {details?.powerLevel?.toLocaleString() ?? 'N/A'}</p>
+               {/* Add other relevant details if available */}
+          </div>
       </div>
-    </CollapsibleSection>
+    </div>
   );
 };
 

@@ -1,0 +1,54 @@
+name: 🚀 Feature Request
+description: Schlage ein neues Feature vor
+title: "[Feature] "
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bitte fülle die Felder aus, um einen neuen Feature-Branch und Pull Request anzufordern.
+
+  - type: input
+    id: base-branch
+    attributes:
+      label: Base branch
+      description: Von diesem Branch soll abgezweigt werden.
+      placeholder: main
+    validations:
+      required: true
+
+  - type: input
+    id: new-branch
+    attributes:
+      label: Neuer Branch-Name
+      description: Wie soll der neue Feature-Branch heißen?
+      placeholder: feature/<dein-feature>
+    validations:
+      required: true
+
+  - type: input
+    id: pr-target
+    attributes:
+      label: Pull Request Ziel
+      description: In welchen Branch soll der PR gemergt werden?
+      placeholder: main
+    validations:
+      required: true
+
+  - type: textarea
+    id: beschreibung
+    attributes:
+      label: Beschreibung
+      description: Beschreibe das gewünschte Feature oder die Aufgabe.
+      placeholder: Was soll umgesetzt werden?
+    validations:
+      required: true
+
+  - type: textarea
+    id: akzeptanzkriterien
+    attributes:
+      label: Akzeptanzkriterien
+      description: Was muss erledigt sein, damit dieses Issue als abgeschlossen gilt?
+      placeholder: Akzeptanzkriterien aufführen
+    validations:
+      required: false

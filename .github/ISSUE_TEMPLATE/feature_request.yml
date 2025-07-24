@@ -1,0 +1,54 @@
+name: 🚀 Feature Request
+description: Suggest a new feature
+title: "[Feature] "
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out the fields to request a new feature branch and pull request.
+
+  - type: input
+    id: base-branch
+    attributes:
+      label: Base branch
+      description: The branch to fork from.
+      placeholder: main
+    validations:
+      required: true
+
+  - type: input
+    id: new-branch
+    attributes:
+      label: New Branch Name
+      description: What should the new feature branch be called?
+      placeholder: feature/<your-feature>
+    validations:
+      required: true
+
+  - type: input
+    id: pr-target
+    attributes:
+      label: Pull Request Target
+      description: Which branch should the PR be merged into?
+      placeholder: main
+    validations:
+      required: true
+
+  - type: textarea
+    id: beschreibung
+    attributes:
+      label: Description
+      description: Describe the desired feature or task.
+      placeholder: What should be implemented?
+    validations:
+      required: true
+
+  - type: textarea
+    id: akzeptanzkriterien
+    attributes:
+      label: Acceptance Criteria
+      description: What needs to be completed for this issue to be considered done?
+      placeholder: List acceptance criteria
+    validations:
+      required: false

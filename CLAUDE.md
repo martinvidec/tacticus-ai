@@ -119,7 +119,8 @@ Each statistic is placed in the appropriate dashboard section:
 - **Missions**: TokenManagement → MissionProgressSection → CampaignAnalysis
 - **Guild**: GuildAffiliationSection → GuildActivityMonitor
 
-### Known Pre-existing Build Issues
-- `useOpenUnit` export from `page.tsx` violates Next.js 14 Page export rules (TS2344)
-- `SideNavMenu.tsx` imports non-existent heroicons (TrendingUpIcon, BoxIcon, etc.)
-- `SignInWithGoogle.tsx` references missing module `../lib/hooks/useAuth`
+### Resolved Build Issues (fixed in this roadmap)
+- `useOpenUnit` extracted from `page.tsx` to `lib/contexts/OpenUnitContext.tsx` (Next.js page export restriction)
+- Dead heroicon imports removed from `SideNavMenu.tsx`
+- `SignInWithGoogle.tsx` import fixed to use `@/lib/contexts/AuthContext`
+- OpenAI/Replicate clients made lazy-init to prevent build crashes without API keys

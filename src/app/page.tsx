@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useDebug } from '@/lib/contexts/DebugContext';
@@ -63,26 +63,7 @@ import {
 import SideNavMenu from './components/SideNavMenu';
 // Import Breadcrumbs
 import Breadcrumbs, { BreadcrumbItem } from './components/Breadcrumbs';
-
-// --- Context for Opened Unit Details --- 
-interface OpenUnitContextType {
-  openUnitIds: Set<string>;
-  toggleUnitOpen: (unitId: string) => void;
-  openCombatUnitsSection: () => void;
-}
-
-// Create context with a default value (can be null or a mock, but check usage)
-const OpenUnitContext = createContext<OpenUnitContextType | null>(null);
-
-// Custom hook for easier consumption (optional but good practice)
-export const useOpenUnit = () => {
-  const context = useContext(OpenUnitContext);
-  if (!context) {
-    throw new Error('useOpenUnit must be used within an OpenUnitProvider');
-  }
-  return context;
-};
-// --- End Context Definition --- 
+import { OpenUnitContext } from '@/lib/contexts/OpenUnitContext';
 
 // Helper type for sorting
 type SortKey = 'name' | 'xpLevel' | 'rank' | 'shards' | 'progressionIndex' | 'upgradesCount';

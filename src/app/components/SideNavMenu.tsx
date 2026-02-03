@@ -2,17 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link'; // Might not be needed if selection is handled by state
-import { 
-    UserCircleIcon, 
-    ShieldCheckIcon, 
-    TrendingUpIcon, 
-    BoxIcon, 
-    ClipboardListIcon, 
-    TargetIcon, 
-    ChevronLeftIcon, 
+import {
+    ChevronLeftIcon,
     ChevronRightIcon,
-    MenuIcon 
-} from '@heroicons/react/24/outline'; // Using Heroicons for variety, can change back to lucide
+} from '@heroicons/react/24/outline';
 
 interface Section {
     id: string;

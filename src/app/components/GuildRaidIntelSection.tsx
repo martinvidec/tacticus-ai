@@ -3,7 +3,7 @@ import { GuildRaidResponse, PublicHeroDetail, PlayerDataResponse } from '@/lib/t
 import { Swords, User, Target as TargetIcon, Bomb, Calendar } from 'lucide-react';
 import SeasonSelector from './SeasonSelector';
 import BossPerformanceSection from './BossPerformanceSection';
-import { useOpenUnit } from '../page'; // Adjust path if context is defined elsewhere
+import { useOpenUnit } from '@/lib/contexts/OpenUnitContext';
 import HeroPowerRankingChart from './charts/HeroPowerRankingChart';
 import { BreadcrumbItem } from './Breadcrumbs'; // Import BreadcrumbItem type
 

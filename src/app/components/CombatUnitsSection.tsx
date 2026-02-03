@@ -3,7 +3,7 @@ import { Unit, Ability, UnitItem, GrandAlliance, Faction } from '@/lib/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Select, SelectItem, MultiSelect, MultiSelectItem, Card } from '@tremor/react';
 import HeroRaidTimelineChart from './charts/HeroRaidTimelineChart';
-import { useOpenUnit } from '../page'; // Adjust path if context is defined elsewhere
+import { useOpenUnit } from '@/lib/contexts/OpenUnitContext';
 
 // Types moved/copied from page.tsx
 type SortKey = 'name' | 'xpLevel' | 'rank' | 'shards' | 'progressionIndex' | 'upgradesCount';

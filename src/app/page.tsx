@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useDebug } from '@/lib/contexts/DebugContext';
@@ -33,6 +33,18 @@ import ArmouryStoresSection from './components/ArmouryStoresSection';
 import MissionProgressSection from './components/MissionProgressSection';
 // Import new component
 import CombatUnitsSection from './components/CombatUnitsSection';
+import RosterStrengthAnalysis from './components/RosterStrengthAnalysis';
+import UnitReadinessSection from './components/UnitReadinessSection';
+import RaidEfficiencyAnalysis from './components/RaidEfficiencyAnalysis';
+import CampaignAnalysis from './components/CampaignAnalysis';
+import ShardFarmingPriority from './components/ShardFarmingPriority';
+import EquipmentAudit from './components/EquipmentAudit';
+import AbilityAnalysis from './components/AbilityAnalysis';
+import GuildActivityMonitor from './components/GuildActivityMonitor';
+import ResourceBudget from './components/ResourceBudget';
+import TokenManagement from './components/TokenManagement';
+import UpgradeProgress from './components/UpgradeProgress';
+import RaidSeasonTrends from './components/RaidSeasonTrends';
 // Import the new Dashboard component
 import DashboardOverview from './components/DashboardOverview';
 
@@ -51,26 +63,7 @@ import {
 import SideNavMenu from './components/SideNavMenu';
 // Import Breadcrumbs
 import Breadcrumbs, { BreadcrumbItem } from './components/Breadcrumbs';
-
-// --- Context for Opened Unit Details --- 
-interface OpenUnitContextType {
-  openUnitIds: Set<string>;
-  toggleUnitOpen: (unitId: string) => void;
-  openCombatUnitsSection: () => void;
-}
-
-// Create context with a default value (can be null or a mock, but check usage)
-const OpenUnitContext = createContext<OpenUnitContextType | null>(null);
-
-// Custom hook for easier consumption (optional but good practice)
-export const useOpenUnit = () => {
-  const context = useContext(OpenUnitContext);
-  if (!context) {
-    throw new Error('useOpenUnit must be used within an OpenUnitProvider');
-  }
-  return context;
-};
-// --- End Context Definition --- 
+import { OpenUnitContext } from '@/lib/contexts/OpenUnitContext';
 
 // Helper type for sorting
 type SortKey = 'name' | 'xpLevel' | 'rank' | 'shards' | 'progressionIndex' | 'upgradesCount';
@@ -871,49 +864,110 @@ export default function Home() {
                                 guildTopTeamsData={guildTopTeamsLastSeason}
                             />}
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
-                            {selectedSectionId === 'guild' && <GuildAffiliationSection guildData={guildData} />}
-                            {selectedSectionId === 'raidIntel' && 
-                                <GuildRaidIntelSection 
-                                    raidDataForDisplay={raidDataForDisplay} 
-                                    selectedSeason={selectedSeason} 
-                                    availableSeasons={availableSeasons}
-                                    setSelectedSeason={setSelectedSeason}
-                                    playerData={playerData}
-                                    heroNameMap={heroNameMap}
-                                    unitDetailsMap={unitDetailsMap}
-                                    updateBreadcrumbs={setBreadcrumbs}
-                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Raid Intel' /* Fallback */, onClick: resetRaidIntelView }}
-                                />
-                            }
-                            {selectedSectionId === 'armoury' && 
-                                <ArmouryStoresSection 
-                                    inventory={playerData?.player?.inventory} 
-                                    updateBreadcrumbs={setBreadcrumbs} 
-                                    // Ensure baseBreadcrumb is passed correctly
-                                    baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Armoury & Stores', onClick: resetArmouryView }}
-                                    // Pass the state and setter down
-                                    selectedCategory={selectedArmouryCategory}
-                                    onSelectCategory={setSelectedArmouryCategory}
-                                />
-                            }
-                            {selectedSectionId === 'missions' && <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />}
-                            {selectedSectionId === 'roster' && 
-                                <CombatUnitsSection 
-                                    filteredAndSortedUnits={filteredAndSortedUnits}
-                                    totalUnitsCount={playerData?.player?.units?.length ?? 0}
-                                    availableAlliances={availableAlliances}
-                                    availableFactions={availableFactions}
-                                    selectedAlliances={selectedAlliances}
-                                    setSelectedAlliances={setSelectedAlliances}
-                                    selectedFactions={selectedFactions}
-                                    setSelectedFactions={setSelectedFactions}
-                                    primarySort={primarySort}
-                                    setPrimarySort={setPrimarySort}
-                                    secondarySort={secondarySort}
-                                    setSecondarySort={setSecondarySort}
-                                    heroPerformanceData={heroPerformanceData}
-                                />
-                            }
+                            {selectedSectionId === 'guild' && (
+                                <>
+                                    <GuildAffiliationSection guildData={guildData} />
+                                    <div className="mt-4">
+                                        <GuildActivityMonitor guild={guildData?.guild} />
+                                    </div>
+                                </>
+                            )}
+                            {selectedSectionId === 'raidIntel' && (
+                                <>
+                                    <GuildRaidIntelSection
+                                        raidDataForDisplay={raidDataForDisplay}
+                                        selectedSeason={selectedSeason}
+                                        availableSeasons={availableSeasons}
+                                        setSelectedSeason={setSelectedSeason}
+                                        playerData={playerData}
+                                        heroNameMap={heroNameMap}
+                                        unitDetailsMap={unitDetailsMap}
+                                        updateBreadcrumbs={setBreadcrumbs}
+                                        baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Raid Intel' /* Fallback */, onClick: resetRaidIntelView }}
+                                    />
+                                    <div className="mt-4">
+                                        <RaidEfficiencyAnalysis
+                                            allSeasonsRaidData={allSeasonsRaidData}
+                                            tacticusUserId={tacticusUserId}
+                                            units={playerData?.player?.units}
+                                        />
+                                    </div>
+                                    <div className="mt-4">
+                                        <RaidSeasonTrends
+                                            allSeasonsRaidData={allSeasonsRaidData}
+                                            tacticusUserId={tacticusUserId}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            {selectedSectionId === 'armoury' && (
+                                <>
+                                    <ArmouryStoresSection
+                                        inventory={playerData?.player?.inventory}
+                                        updateBreadcrumbs={setBreadcrumbs}
+                                        baseBreadcrumb={breadcrumbs.length > 0 && breadcrumbs[0].onClick ? breadcrumbs[0] : { label: 'Armoury & Stores', onClick: resetArmouryView }}
+                                        selectedCategory={selectedArmouryCategory}
+                                        onSelectCategory={setSelectedArmouryCategory}
+                                    />
+                                    <div className="mt-4">
+                                        <EquipmentAudit
+                                            units={playerData?.player?.units}
+                                            inventoryItems={playerData?.player?.inventory?.items}
+                                        />
+                                    </div>
+                                    <div className="mt-4">
+                                        <ResourceBudget inventory={playerData?.player?.inventory} />
+                                    </div>
+                                </>
+                            )}
+                            {selectedSectionId === 'missions' && (
+                                <>
+                                    <TokenManagement progress={playerData?.player?.progress} />
+                                    <div className="mt-4">
+                                        <MissionProgressSection progress={playerData?.player?.progress} renderTokens={renderTokens} />
+                                    </div>
+                                    <div className="mt-4">
+                                        <CampaignAnalysis progress={playerData?.player?.progress} />
+                                    </div>
+                                </>
+                            )}
+                            {selectedSectionId === 'roster' && (
+                                <>
+                                    <RosterStrengthAnalysis units={playerData?.player?.units} />
+                                    <div className="mt-4">
+                                        <UnitReadinessSection units={playerData?.player?.units} />
+                                    </div>
+                                    <div className="mt-4">
+                                        <ShardFarmingPriority
+                                            units={playerData?.player?.units}
+                                            inventoryShards={playerData?.player?.inventory?.shards}
+                                        />
+                                    </div>
+                                    <div className="mt-4">
+                                        <AbilityAnalysis units={playerData?.player?.units} />
+                                    </div>
+                                    <div className="mt-4">
+                                        <UpgradeProgress units={playerData?.player?.units} />
+                                    </div>
+                                    <div className="mt-4">
+                                        <CombatUnitsSection
+                                            filteredAndSortedUnits={filteredAndSortedUnits}
+                                            totalUnitsCount={playerData?.player?.units?.length ?? 0}
+                                            availableAlliances={availableAlliances}
+                                            availableFactions={availableFactions}
+                                            selectedAlliances={selectedAlliances}
+                                            setSelectedAlliances={setSelectedAlliances}
+                                            selectedFactions={selectedFactions}
+                                            setSelectedFactions={setSelectedFactions}
+                                            primarySort={primarySort}
+                                            setPrimarySort={setPrimarySort}
+                                            secondarySort={secondarySort}
+                                            setSecondarySort={setSecondarySort}
+                                            heroPerformanceData={heroPerformanceData}
+                                        />
+                                    </div>
+                                </>
+                            )}
                          </div>
                      </OpenUnitContext.Provider> 
                 )}

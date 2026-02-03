@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import OpenAI from "openai";
 
-const openai = new OpenAI();
-
 export async function POST(req: Request) {
+  const openai = new OpenAI();
   const body = await req.json();
 
   const base64Audio = body.audio;

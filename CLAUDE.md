@@ -2,9 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Session-Start Workflow
+
+**Bei jeder neuen Session:**
+
+1. **Offene Issues prüfen:**
+   ```bash
+   gh issue list --state open
+   ```
+
+2. **Benutzer fragen:** "Es gibt X offene Issues. Mit welchem soll ich beginnen?" (Liste anzeigen)
+
+3. **Branch erstellen** für das gewählte Issue:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b fix/issue-<nummer>-<kurzbeschreibung>
+   ```
+   Beispiel: `fix/issue-15-remove-deepgram`
+
+4. **Issue bearbeiten** und regelmäßig committen
+
+5. **Nach Erledigung:**
+   ```bash
+   git push -u origin <branch-name>
+   gh pr create --title "<Titel>" --body "Closes #<issue-nummer>"
+   ```
+
+6. **Wichtig:** Niemals direkt auf `main` pushen! Der `main`-Branch wird automatisch deployed. Alle Änderungen müssen über Pull Requests gemerged werden.
+
+## Branch-Namenskonventionen
+
+| Typ | Format | Beispiel |
+|-----|--------|----------|
+| Bugfix/Issue | `fix/issue-<nr>-<beschreibung>` | `fix/issue-15-remove-deepgram` |
+| Feature | `feat/<beschreibung>` | `feat/add-rate-limiting` |
+| Security | `security/issue-<nr>-<beschreibung>` | `security/issue-18-input-validation` |
+
 ## Commands
 
+Node.js is installed via **nvm**. The npm binary is not on the default PATH.
+Always prefix commands with the PATH export:
+
 ```bash
+export PATH="/Users/vid/.nvm/versions/node/v20.19.6/bin:$PATH"
+
 npm run dev      # Start dev server on localhost:3000
 npm run build    # Production build
 npm run lint     # ESLint via Next.js

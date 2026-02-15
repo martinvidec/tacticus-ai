@@ -10,14 +10,6 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "replicate.com",
-      },
-      {
-        protocol: "https",
-        hostname: "replicate.delivery",
-      },
-      {
-        protocol: "https",
         hostname: "firebasestorage.googleapis.com",
       },
     ],

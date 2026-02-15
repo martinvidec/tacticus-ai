@@ -64,7 +64,6 @@ Next.js 14 App Router application (TypeScript, Tailwind CSS) that serves as a da
 - `app/page.tsx` — Main dashboard page (~850 lines, client component). Manages all top-level state, data fetching, and section rendering.
 - `app/settings/page.tsx` — API key management page.
 - `app/api/tacticus/` — Server-side API routes that proxy requests to the Tacticus game API. Each route verifies Firebase auth and retrieves the user's stored API key before calling the external API.
-- `app/api/replicate/` — Image generation integration (Replicate). *(Scheduled for removal: Issue #17)*
 - `app/components/` — React components organized by dashboard section (CombatUnitsSection, ArmouryStoresSection, charts/, etc.).
 - `lib/types.ts` — TypeScript types mirroring the Tacticus API schema (Player, Guild, GuildRaid, etc.).
 - `lib/firebase/` — Firebase client SDK init (`firebase.ts`), Admin SDK init (`firebaseAdmin.ts`), and utilities.

@@ -9,11 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^0.0.48",
-    "@ai-sdk/openai": "^0.0.54",
     "@heroicons/react": "^2.2.0",
     "@tremor/react": "^3.18.7",
-    "ai": "^3.3.20",
     "date-fns": "^3.6.0",
     "firebase": "^10.13.0",
     "firebase-admin": "^13.2.0",

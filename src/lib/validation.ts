@@ -4,13 +4,13 @@ import { z } from 'zod';
  * Validation schemas for API endpoints
  */
 
-// Season parameter validation (e.g., "GR_S17", "GR_S18")
+// Season parameter validation (numeric string, e.g., "69", "93")
 export const SeasonParamSchema = z.object({
   season: z
     .string()
     .min(1, 'Season parameter is required')
-    .max(20, 'Season parameter too long')
-    .regex(/^GR_S\d+$/, 'Invalid season format. Expected format: GR_S<number>'),
+    .max(10, 'Season parameter too long')
+    .regex(/^\d+$/, 'Invalid season format. Expected numeric value.'),
 });
 
 // API Key validation for validateKeyAndGetId endpoint

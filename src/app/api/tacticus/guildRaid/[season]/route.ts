@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { SeasonParamSchema, validateParams } from '@/lib/validation';
+import { checkRateLimit, getRateLimitHeaders, raidRateLimit } from '@/lib/ratelimit';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
 
@@ -94,7 +95,16 @@ export async function GET(
     }
     console.log(`[API Route] Retrieved API Key for user ${uid}.`);
 
-    // 3. Fetch from Tacticus API
+    // 3. Check Rate Limit
+    const rateLimitResult = await checkRateLimit(uid, raidRateLimit);
+    if (!rateLimitResult.success) {
+        return NextResponse.json(
+            { type: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please try again later.' },
+            { status: 429, headers: getRateLimitHeaders(rateLimitResult) }
+        );
+    }
+
+    // 4. Fetch from Tacticus API
     const targetUrl = `${TACTICUS_SERVER_URL}guildRaid/${season}`;
     console.log(`[API Route] Fetching data from Tacticus API: ${targetUrl}`);
     try {

@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
 import type { GuildRaidResponse } from '@/lib/types';
 import { ApiKeyBodySchema, validateParams } from '@/lib/validation';
+import { checkRateLimit, getRateLimitHeaders, standardRateLimit } from '@/lib/ratelimit';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
+
+// Helper to extract client IP for rate limiting
+function getClientIp(request: Request): string {
+    // Check common headers for forwarded IPs (behind proxy/load balancer)
+    const forwarded = request.headers.get('x-forwarded-for');
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    const realIp = request.headers.get('x-real-ip');
+    if (realIp) {
+        return realIp;
+    }
+    // Fallback to a generic identifier
+    return 'anonymous';
+}
 
 export async function POST(request: Request) {
     console.log("[API Validate] Received validation request.");
@@ -10,6 +26,16 @@ export async function POST(request: Request) {
     if (!TACTICUS_SERVER_URL) {
         console.error('[API Validate] TACTICUS_SERVER_URL is not configured.');
         return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
+    }
+
+    // Check rate limit (IP-based since this endpoint has no auth)
+    const clientIp = getClientIp(request);
+    const rateLimitResult = await checkRateLimit(`validate:${clientIp}`, standardRateLimit);
+    if (!rateLimitResult.success) {
+        return NextResponse.json(
+            { success: false, error: 'Too many requests. Please try again later.' },
+            { status: 429, headers: getRateLimitHeaders(rateLimitResult) }
+        );
     }
 
     let apiKey: string;

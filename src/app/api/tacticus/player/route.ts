@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { verifyUserAndGetApiKey } from '@/lib/apiHelpers'; // Import the helper
+import { verifyUserAndGetApiKey } from '@/lib/apiHelpers';
+import { checkRateLimit, getRateLimitHeaders, standardRateLimit } from '@/lib/ratelimit';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
-// Remove static API key usage
-// const TACTICUS_API_KEY = process.env.TACTICUS_API_KEY;
 
 export async function GET(request: Request) {
 
@@ -20,7 +19,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ type: apiKeyResult.error }, { status: apiKeyResult.status });
   }
   // Successfully got the user-specific API key
-  const { apiKey } = apiKeyResult;
+  const { uid, apiKey } = apiKeyResult;
+
+  // 2. Check rate limit
+  const rateLimitResult = await checkRateLimit(uid, standardRateLimit);
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { type: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please try again later.' },
+      { status: 429, headers: getRateLimitHeaders(rateLimitResult) }
+    );
+  }
 
   // Remove check for static API key
   // if (!TACTICUS_API_KEY) {

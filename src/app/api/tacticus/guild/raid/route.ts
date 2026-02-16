@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin';
 import { DecodedIdToken } from 'firebase-admin/auth';
+import { checkRateLimit, getRateLimitHeaders, raidRateLimit } from '@/lib/ratelimit';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
 
@@ -64,8 +65,17 @@ export async function GET(request: Request) {
        console.log(`Guild Raid Route: API Key not found for user ${decodedToken.uid}.`);
       return NextResponse.json({ type: 'API_KEY_NOT_SET' }, { status: 403 });
   }
-  
-  // --- 2. Check for Tacticus Server URL --- 
+
+  // --- 2. Check Rate Limit ---
+  const rateLimitResult = await checkRateLimit(decodedToken.uid, raidRateLimit);
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { type: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. Please try again later.' },
+      { status: 429, headers: getRateLimitHeaders(rateLimitResult) }
+    );
+  }
+
+  // --- 3. Check for Tacticus Server URL --- 
   if (!TACTICUS_SERVER_URL) {
     console.error('TACTICUS_SERVER_URL is not defined');
     // This should NOT be the error if other routes work, but keep check.
@@ -75,7 +85,7 @@ export async function GET(request: Request) {
   const targetUrl = `${TACTICUS_SERVER_URL}guild/raid`;
   const headers = { 'X-API-KEY': userApiKey };
 
-  // --- 3. Make Request to Tacticus API --- 
+  // --- 4. Make Request to Tacticus API ---
   try {
     console.log(`Guild Raid Route: Fetching data for user ${decodedToken.uid} from ${targetUrl} using their key.`);
     const response = await fetch(targetUrl, {
@@ -83,7 +93,7 @@ export async function GET(request: Request) {
       // cache: 'no-store', // Uncomment if caching issues are suspected
     });
 
-    // --- 4. Handle Tacticus API Response --- 
+    // --- 5. Handle Tacticus API Response ---
     if (!response.ok) {
       let errorType = 'TACTICUS_API_ERROR';
       let errorDetail = `Tacticus API responded with status ${response.status}`; 

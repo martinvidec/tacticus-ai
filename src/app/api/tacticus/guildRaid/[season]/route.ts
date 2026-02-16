@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { SeasonParamSchema, validateParams } from '@/lib/validation';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
 
@@ -49,7 +50,16 @@ export async function GET(
     request: Request,
     { params }: { params: { season: string } }
 ) {
-    const season = params.season;
+    // Validate season parameter
+    const validation = validateParams(SeasonParamSchema, params);
+    if (!validation.success) {
+        console.log(`[API Route] Invalid season parameter: ${validation.error}`);
+        return NextResponse.json(
+            { type: 'VALIDATION_ERROR', message: validation.error },
+            { status: 400 }
+        );
+    }
+    const { season } = validation.data;
     console.log(`[API Route] Received GET request for guildRaid season: ${season}`);
 
     if (!TACTICUS_SERVER_URL) {

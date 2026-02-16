@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { GuildRaidResponse } from '@/lib/types';
+import { ApiKeyBodySchema, validateParams } from '@/lib/validation';
 
 const TACTICUS_SERVER_URL = process.env.TACTICUS_SERVER_URL;
 
@@ -11,13 +12,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
     }
 
-    let apiKey: string | undefined;
+    let apiKey: string;
     try {
         const body = await request.json();
-        apiKey = body.apiKey;
-        if (!apiKey || typeof apiKey !== 'string') {
-            return NextResponse.json({ success: false, error: 'Missing or invalid apiKey in request body.' }, { status: 400 });
+        const validation = validateParams(ApiKeyBodySchema, body);
+        if (!validation.success) {
+            return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
         }
+        apiKey = validation.data.apiKey;
     } catch (error) {
         return NextResponse.json({ success: false, error: 'Invalid request body.' }, { status: 400 });
     }

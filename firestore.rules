@@ -39,9 +39,13 @@ service cloud.firestore {
       allow read: if isOwner(userId);
 
       // Only the owner can write, with validation
+      // Allowed fields: tacticusApiKey, tacticusUserId, claudeApiKey, claudeModel, claudeKeyUpdatedAt, createdAt, updatedAt
       allow write: if isOwner(userId)
-                   && request.resource.data.keys().hasOnly(['tacticusApiKey', 'createdAt', 'updatedAt'])
-                   && isNonEmptyString(request.resource.data.tacticusApiKey);
+                   && request.resource.data.keys().hasOnly([
+                        'tacticusApiKey', 'tacticusUserId',
+                        'claudeApiKey', 'claudeModel', 'claudeKeyUpdatedAt',
+                        'createdAt', 'updatedAt'
+                      ]);
     }
 
     // ============================================

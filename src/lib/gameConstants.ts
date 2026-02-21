@@ -54,25 +54,32 @@ export function getRarityFromProgressionIndex(index: number): string {
 }
 
 /**
+ * Rank tier names as a constant record.
+ */
+export const RANK_TIER_NAMES: Record<number, string> = {
+  0: 'Stone I',
+  1: 'Stone II',
+  2: 'Stone III',
+  3: 'Iron I',
+  4: 'Iron II',
+  5: 'Iron III',
+  6: 'Bronze I',
+  7: 'Bronze II',
+  8: 'Bronze III',
+  9: 'Silver I',
+  10: 'Silver II',
+  11: 'Silver III',
+  12: 'Gold I',
+  13: 'Gold II',
+  14: 'Gold III',
+  15: 'Diamond I',
+  16: 'Diamond II',
+  17: 'Diamond III',
+};
+
+/**
  * Rank tier names mapped to rank numbers.
  */
 export function getRankTierName(rank: number): string {
-  if (rank >= 17) return 'Diamond III';
-  if (rank >= 16) return 'Diamond II';
-  if (rank >= 15) return 'Diamond I';
-  if (rank >= 14) return 'Gold III';
-  if (rank >= 13) return 'Gold II';
-  if (rank >= 12) return 'Gold I';
-  if (rank >= 11) return 'Silver III';
-  if (rank >= 10) return 'Silver II';
-  if (rank >= 9) return 'Silver I';
-  if (rank >= 8) return 'Bronze III';
-  if (rank >= 7) return 'Bronze II';
-  if (rank >= 6) return 'Bronze I';
-  if (rank >= 5) return 'Iron III';
-  if (rank >= 4) return 'Iron II';
-  if (rank >= 3) return 'Iron I';
-  if (rank >= 2) return 'Stone III';
-  if (rank >= 1) return 'Stone II';
-  return 'Stone I';
+  return RANK_TIER_NAMES[rank] || `Rank ${rank}`;
 }

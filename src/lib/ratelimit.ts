@@ -27,6 +27,16 @@ export const raidRateLimit = redis
     })
   : null;
 
+// Chat Rate Limiter: 10 requests per 60 seconds (for Claude API calls)
+export const chatRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "60 s"),
+      analytics: true,
+      prefix: "@tacticus/chat",
+    })
+  : null;
+
 export interface RateLimitResult {
   success: boolean;
   limit?: number;

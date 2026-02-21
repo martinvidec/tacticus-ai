@@ -128,7 +128,7 @@ export async function deleteUserApiKey(
     try {
         const userDocRef = adminDb.collection('users').doc(userId);
         // Use FieldValue.delete() to remove the specific fields
-        await userDocRef.update({ 
+        await userDocRef.update({
             tacticusApiKey: FieldValue.delete(),
             tacticusUserId: FieldValue.delete() // Also delete the Tacticus ID
         });
@@ -143,8 +143,171 @@ export async function deleteUserApiKey(
         let errorMessage = 'Failed to delete API key fields.';
         if (error instanceof Error && (error as any).code === 5) { // Firestore error code 5 is NOT_FOUND
             console.log(`Document or fields already deleted for user ${userId}. Treating as success.`);
-            return { success: true }; 
+            return { success: true };
         }
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return { success: false, error: errorMessage };
+    }
+}
+
+// ============================================
+// Claude API Key Server Actions
+// ============================================
+
+/**
+ * Saves or updates the user's Claude API key and model preference in Firestore.
+ * @param userId - The Firebase UID of the user.
+ * @param apiKey - The Claude API key to save.
+ * @param model - The preferred Claude model.
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function saveClaudeApiKey(
+    userId: string | null,
+    apiKey: string,
+    model: string
+): Promise<{ success: boolean; error?: string }> {
+    if (!userId) {
+        return { success: false, error: 'User not authenticated.' };
+    }
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+        return { success: false, error: 'Invalid Claude API key provided.' };
+    }
+    if (!apiKey.startsWith('sk-ant-')) {
+        return { success: false, error: 'Invalid Claude API key format.' };
+    }
+    if (!adminDb) {
+        console.error("Firebase Admin DB is not initialized.");
+        return { success: false, error: 'Server configuration error.' };
+    }
+
+    try {
+        const userDocRef = adminDb.collection('users').doc(userId);
+        await userDocRef.set({
+            claudeApiKey: apiKey,
+            claudeModel: model,
+            claudeKeyUpdatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error saving Claude API key:", error);
+        let errorMessage = 'Failed to save Claude API key.';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return { success: false, error: errorMessage };
+    }
+}
+
+/**
+ * Retrieves the status of the user's Claude API key configuration.
+ * @param userId - The Firebase UID of the user.
+ * @returns Promise<{ hasKey: boolean; model?: string; error?: string }>
+ */
+export async function getClaudeApiKeyStatus(
+    userId: string | null
+): Promise<{ hasKey: boolean; model?: string; error?: string }> {
+    if (!userId) {
+        return { hasKey: false, error: 'User not authenticated.' };
+    }
+    if (!adminDb) {
+        console.error("Firebase Admin DB is not initialized for getClaudeApiKeyStatus.");
+        return { hasKey: false, error: 'Server configuration error.' };
+    }
+
+    try {
+        const userDocRef = adminDb.collection('users').doc(userId);
+        const docSnap = await userDocRef.get();
+
+        if (docSnap.exists) {
+            const data = docSnap.data() as { [key: string]: any } | undefined;
+            const apiKey = data?.claudeApiKey;
+            const model = data?.claudeModel;
+
+            if (apiKey && typeof apiKey === 'string' && apiKey.startsWith('sk-ant-')) {
+                return { hasKey: true, model: model || 'claude-sonnet-4-20250514' };
+            }
+        }
+        return { hasKey: false };
+    } catch (error) {
+        console.error("Error fetching Claude API key status:", error);
+        let errorMessage = 'Failed to fetch Claude API key status.';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return { hasKey: false, error: errorMessage };
+    }
+}
+
+/**
+ * Deletes the user's Claude API key and model preference from Firestore.
+ * @param userId - The Firebase UID of the user.
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function deleteClaudeApiKey(
+    userId: string | null
+): Promise<{ success: boolean; error?: string }> {
+    if (!userId) {
+        return { success: false, error: 'User not authenticated.' };
+    }
+    if (!adminDb) {
+        console.error("Firebase Admin DB is not initialized for deleteClaudeApiKey.");
+        return { success: false, error: 'Server configuration error.' };
+    }
+
+    try {
+        const userDocRef = adminDb.collection('users').doc(userId);
+        await userDocRef.update({
+            claudeApiKey: FieldValue.delete(),
+            claudeModel: FieldValue.delete(),
+            claudeKeyUpdatedAt: FieldValue.delete(),
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting Claude API key:", error);
+        let errorMessage = 'Failed to delete Claude API key.';
+        if (error instanceof Error && (error as any).code === 5) {
+            console.log(`Claude fields already deleted for user ${userId}. Treating as success.`);
+            return { success: true };
+        }
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return { success: false, error: errorMessage };
+    }
+}
+
+/**
+ * Updates the user's preferred Claude model.
+ * @param userId - The Firebase UID of the user.
+ * @param model - The new model to use.
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function updateClaudeModel(
+    userId: string | null,
+    model: string
+): Promise<{ success: boolean; error?: string }> {
+    if (!userId) {
+        return { success: false, error: 'User not authenticated.' };
+    }
+    if (!adminDb) {
+        console.error("Firebase Admin DB is not initialized.");
+        return { success: false, error: 'Server configuration error.' };
+    }
+
+    try {
+        const userDocRef = adminDb.collection('users').doc(userId);
+        await userDocRef.update({
+            claudeModel: model,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating Claude model:", error);
+        let errorMessage = 'Failed to update Claude model.';
         if (error instanceof Error) {
             errorMessage = error.message;
         }

@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user owns this document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate that a string field exists and is not empty
+    function isNonEmptyString(field) {
+      return field is string && field.size() > 0;
+    }
+
+    // ============================================
+    // User Documents (API Keys)
+    // ============================================
+    // Collection: /users/{userId}
+    // Contains: tacticusApiKey, createdAt, updatedAt
+    // Access: Owner only (read/write)
+    //
+    // NOTE: All actual access is done server-side via Admin SDK.
+    // These rules are a defense-in-depth measure to prevent
+    // accidental client-side access to sensitive API keys.
+    // ============================================
+
+    match /users/{userId} {
+      // Only the owner can read their own document
+      allow read: if isOwner(userId);
+
+      // Only the owner can write, with validation
+      allow write: if isOwner(userId)
+                   && request.resource.data.keys().hasOnly(['tacticusApiKey', 'createdAt', 'updatedAt'])
+                   && isNonEmptyString(request.resource.data.tacticusApiKey);
+    }
+
+    // ============================================
+    // User Settings
+    // ============================================
+    // Collection: /userSettings/{userId}
+    // Contains: User preferences and settings
+    // Access: Owner only (read/write)
+    // ============================================
+
+    match /userSettings/{userId} {
+      // Only the owner can read their own settings
+      allow read: if isOwner(userId);
+
+      // Only the owner can write their own settings
+      allow write: if isOwner(userId);
+    }
+
+    // ============================================
+    // Default Deny Rule
+    // ============================================
+    // IMPORTANT: This must be the last rule.
+    // Denies all access to any collection not explicitly
+    // defined above. This is a critical security measure.
+    // ============================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

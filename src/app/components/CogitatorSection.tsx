@@ -255,9 +255,10 @@ export default function CogitatorSection({
   }
 
   return (
-    <Card className="bg-[rgba(var(--background-start-rgb),0.7)] border-[rgb(var(--border-color))] flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-[rgb(var(--border-color))] p-4">
+    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
+      <Card className="bg-[rgba(var(--background-start-rgb),0.7)] border-[rgb(var(--border-color))] flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-center justify-between border-b border-[rgb(var(--border-color))] p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[rgba(160,50,50,0.2)] flex items-center justify-center">
             <Bot className="w-6 h-6 text-thematic-red" />
@@ -289,18 +290,18 @@ export default function CogitatorSection({
         </div>
       </div>
 
-      {/* Stats context indicator */}
-      {statsContext && (
-        <div className="px-4 py-2 bg-[rgba(var(--primary-color),0.05)] border-b border-[rgb(var(--border-color))] flex items-center gap-2">
-          <Info className="w-4 h-4 text-[rgb(var(--primary-color))]" />
-          <Text className="text-xs text-[rgb(var(--primary-color))]">
-            Cogitator hat Zugriff auf deine aktuellen Spielerdaten
-          </Text>
-        </div>
-      )}
+        {/* Stats context indicator */}
+        {statsContext && (
+          <div className="flex-shrink-0 px-4 py-2 bg-[rgba(var(--primary-color),0.05)] border-b border-[rgb(var(--border-color))] flex items-center gap-2">
+            <Info className="w-4 h-4 text-[rgb(var(--primary-color))]" />
+            <Text className="text-xs text-[rgb(var(--primary-color))]">
+              Cogitator hat Zugriff auf deine aktuellen Spielerdaten
+            </Text>
+          </div>
+        )}
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Messages area - only this scrolls */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Bot className="w-12 h-12 text-gray-500 mb-4" />
@@ -319,23 +320,24 @@ export default function CogitatorSection({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Error display */}
-      {error && (
-        <div className="mx-4 mb-2 p-3 rounded-lg bg-red-900/30 border border-red-700 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <Text className="text-sm text-red-300">{error}</Text>
-        </div>
-      )}
+        {/* Error display */}
+        {error && (
+          <div className="flex-shrink-0 mx-4 mb-2 p-3 rounded-lg bg-red-900/30 border border-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <Text className="text-sm text-red-300">{error}</Text>
+          </div>
+        )}
 
-      {/* Input area */}
-      <div className="border-t border-[rgb(var(--border-color))] p-4">
-        <ChatInput
-          onSend={handleSendMessage}
-          onStop={handleStopStreaming}
-          disabled={isLoading && !isStreaming}
-          isStreaming={isStreaming}
-        />
-      </div>
-    </Card>
+        {/* Input area */}
+        <div className="flex-shrink-0 border-t border-[rgb(var(--border-color))] p-4">
+          <ChatInput
+            onSend={handleSendMessage}
+            onStop={handleStopStreaming}
+            disabled={isLoading && !isStreaming}
+            isStreaming={isStreaming}
+          />
+        </div>
+      </Card>
+    </div>
   );
 }

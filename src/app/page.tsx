@@ -821,8 +821,8 @@ export default function Home() {
                  }}
             />
 
-            {/* Main Content Area */} 
-            <main className="relative flex-1 overflow-y-auto p-4 md:p-8 pt-4"> {/* Adjusted pt potentially */}
+            {/* Main Content Area - disable scroll for cogitator (has own scroll) */}
+            <main className={`relative flex-1 p-4 md:p-8 pt-4 ${selectedSectionId === 'cogitator' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                 {/* Loading indicator for manual refresh (inside main content) */}
                 {isManualRefreshing && (
                     <div className="absolute inset-0 flex justify-center items-center bg-[rgba(var(--background-end-rgb),0.8)] backdrop-blur-sm z-40 rounded-md">
@@ -857,8 +857,21 @@ export default function Home() {
                          {/* Breadcrumbs - REMOVED from here */}
                          {/* <div className="mb-4"> <Breadcrumbs items={breadcrumbs} /> </div> */}
                          
-                         {/* Conditionally Rendered Section Content */} 
-                         <div className="w-full max-w-6xl mx-auto"> 
+                         {/* Cogitator uses full height, render outside max-width wrapper */}
+                         {selectedSectionId === 'cogitator' && (
+                             <div className="w-full max-w-4xl mx-auto h-full">
+                                 <CogitatorSection
+                                     playerData={playerData}
+                                     guildData={guildData}
+                                     allSeasonsRaidData={allSeasonsRaidData}
+                                     tacticusUserId={tacticusUserId}
+                                 />
+                             </div>
+                         )}
+
+                         {/* Other sections use standard wrapper */}
+                         {selectedSectionId !== 'cogitator' && (
+                         <div className="w-full max-w-6xl mx-auto">
                             {selectedSectionId === 'dashboard' && <DashboardOverview
                                 playerData={playerData}
                                 allSeasonsRaidData={allSeasonsRaidData}
@@ -867,14 +880,6 @@ export default function Home() {
                                 myMostUsedTeamData={myMostUsedTeamLastSeason}
                                 guildTopTeamsData={guildTopTeamsLastSeason}
                             />}
-                            {selectedSectionId === 'cogitator' && (
-                                <CogitatorSection
-                                    playerData={playerData}
-                                    guildData={guildData}
-                                    allSeasonsRaidData={allSeasonsRaidData}
-                                    tacticusUserId={tacticusUserId}
-                                />
-                            )}
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
                             {selectedSectionId === 'guild' && (
                                 <>
@@ -981,6 +986,7 @@ export default function Home() {
                                 </>
                             )}
                          </div>
+                         )}
                      </OpenUnitContext.Provider> 
                 )}
                 

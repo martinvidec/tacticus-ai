@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# private issues (only *-issue.md files are ignored, folder structure is committed)
+/private-issues/*-issue.md
+
 # vercel
 .vercel
 

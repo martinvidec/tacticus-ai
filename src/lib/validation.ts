@@ -41,3 +41,41 @@ export function validateParams<T>(
   }
   return { success: true, data: result.data };
 }
+
+// ============================================
+// Claude Chat Validation Schemas
+// ============================================
+
+// Available Claude models
+export const CLAUDE_MODELS = [
+  'claude-sonnet-4-20250514',
+  'claude-3-5-haiku-20241022',
+  'claude-3-5-sonnet-20241022',
+] as const;
+
+export type ClaudeModel = (typeof CLAUDE_MODELS)[number];
+
+// Claude API Key validation
+export const ClaudeApiKeySchema = z.object({
+  apiKey: z
+    .string()
+    .min(1, 'Claude API key is required')
+    .max(200, 'Claude API key too long')
+    .regex(/^sk-ant-/, 'Invalid Claude API key format'),
+});
+
+// Claude model selection validation
+export const ClaudeModelSchema = z.object({
+  model: z.enum(CLAUDE_MODELS),
+});
+
+// Chat message validation
+export const ChatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1, 'Message content is required').max(10000, 'Message too long'),
+});
+
+// Chat request validation (for API route)
+export const ChatRequestSchema = z.object({
+  messages: z.array(ChatMessageSchema).min(1, 'At least one message is required').max(50, 'Too many messages'),
+});

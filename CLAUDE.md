@@ -6,12 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Bei jeder neuen Session:**
 
-1. **Offene Issues prüfen:**
+1. **Alle offenen Issues prüfen (GitHub + Private):**
    ```bash
+   # GitHub Issues
    gh issue list --state open
+
+   # Private Issues (lokal, nicht in Git)
+   ls -1 private-issues/*.md 2>/dev/null | grep -v README
    ```
 
-2. **Benutzer fragen:** "Es gibt X offene Issues. Mit welchem soll ich beginnen?" (Liste anzeigen)
+2. **Benutzer fragen:** "Es gibt X GitHub Issues und Y private Issues. Mit welchem soll ich beginnen?" (Beide Listen anzeigen)
 
 3. **Branch erstellen** für das gewählte Issue:
    ```bash
@@ -30,6 +34,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    ```
 
 6. **Wichtig:** Niemals direkt auf `main` pushen! Der `main`-Branch wird automatisch deployed. Alle Änderungen müssen über Pull Requests gemerged werden.
+
+## Issue-Management
+
+### GitHub Issues (Standard)
+- Für alle öffentlichen Features, Bugs, Improvements
+- Werden automatisch mit PRs verknüpft (`Closes #123`)
+
+### Private Issues (`private-issues/`)
+- Für sicherheitsrelevante oder vertrauliche Themen
+- Nicht in Git committet (in `.gitignore`)
+- Format: `<bezeichnung>-issue.md`
+- Nur anlegen wenn **explizit** als "privat" angefordert
+- Siehe `private-issues/README.md` für Details
 
 ## Branch-Namenskonventionen
 

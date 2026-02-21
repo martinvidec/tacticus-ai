@@ -47,6 +47,8 @@ import UpgradeProgress from './components/UpgradeProgress';
 import RaidSeasonTrends from './components/RaidSeasonTrends';
 // Import the new Dashboard component
 import DashboardOverview from './components/DashboardOverview';
+// Import Cogitator (AI Chat) component
+import CogitatorSection from './components/CogitatorSection';
 
 // Import necessary icons for SideNavMenu
 import {
@@ -56,7 +58,8 @@ import {
     ArchiveBoxIcon,
     ClipboardDocumentListIcon,
     AdjustmentsHorizontalIcon,
-    Squares2X2Icon
+    Squares2X2Icon,
+    ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 // Import new components
@@ -76,6 +79,7 @@ interface SortCriterion {
 // Define Sections for SideNavMenu with Dashboard
 const sections = [
   { id: 'dashboard', title: 'Dashboard', icon: <Squares2X2Icon className="h-5 w-5" /> },
+  { id: 'cogitator', title: 'Cogitator', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" /> },
   { id: 'vitals', title: 'Player Vitals', icon: <UserCircleIcon className="h-5 w-5" /> },
   { id: 'guild', title: 'Guild Affiliation', icon: <ShieldCheckIcon className="h-5 w-5" /> },
   { id: 'raidIntel', title: 'Guild Raid Intel', icon: <ChartBarIcon className="h-5 w-5" /> },
@@ -855,7 +859,7 @@ export default function Home() {
                          
                          {/* Conditionally Rendered Section Content */} 
                          <div className="w-full max-w-6xl mx-auto"> 
-                            {selectedSectionId === 'dashboard' && <DashboardOverview 
+                            {selectedSectionId === 'dashboard' && <DashboardOverview
                                 playerData={playerData}
                                 allSeasonsRaidData={allSeasonsRaidData}
                                 tacticusUserId={tacticusUserId}
@@ -863,6 +867,14 @@ export default function Home() {
                                 myMostUsedTeamData={myMostUsedTeamLastSeason}
                                 guildTopTeamsData={guildTopTeamsLastSeason}
                             />}
+                            {selectedSectionId === 'cogitator' && (
+                                <CogitatorSection
+                                    playerData={playerData}
+                                    guildData={guildData}
+                                    allSeasonsRaidData={allSeasonsRaidData}
+                                    tacticusUserId={tacticusUserId}
+                                />
+                            )}
                             {selectedSectionId === 'vitals' && <PlayerVitalsSection playerData={playerData} user={user} />}
                             {selectedSectionId === 'guild' && (
                                 <>

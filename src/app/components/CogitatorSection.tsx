@@ -35,7 +35,7 @@ export default function CogitatorSection({
   const [selectedModel, setSelectedModel] = useState<ClaudeModel>('claude-sonnet-4-20250514');
   const [isCheckingKey, setIsCheckingKey] = useState(true);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Check Claude API key status on mount
@@ -63,9 +63,12 @@ export default function CogitatorSection({
     checkKeyStatus();
   }, [user]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change (scroll container only, not page)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   // Generate stats context
@@ -301,24 +304,23 @@ export default function CogitatorSection({
         )}
 
         {/* Messages area - only this scrolls */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <Bot className="w-12 h-12 text-gray-500 mb-4" />
-            <Text className="text-gray-400 mb-2">
-              ++ Cogitator bereit. Awaiting transmission. ++
-            </Text>
-            <Text className="text-xs text-gray-500 max-w-md">
-              Stelle Fragen zu deinem Roster, Raid-Teams, Upgrade-Prioritäten oder Strategien.
-            </Text>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <Bot className="w-12 h-12 text-gray-500 mb-4" />
+              <Text className="text-gray-400 mb-2">
+                ++ Cogitator bereit. Awaiting transmission. ++
+              </Text>
+              <Text className="text-xs text-gray-500 max-w-md">
+                Stelle Fragen zu deinem Roster, Raid-Teams, Upgrade-Prioritäten oder Strategien.
+              </Text>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <ChatMessage key={message.id} message={message} />
+            ))
+          )}
+        </div>
 
         {/* Error display */}
         {error && (

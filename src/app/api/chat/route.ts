@@ -24,7 +24,7 @@ Important:
 - Answer questions based on the actual data
 - If no data is available, point that out
 
-Respond in English.`;
+Always respond in the language of the user's request when possible; otherwise, respond in English.`;
 
 export async function POST(request: NextRequest) {
   // Verify user and get Claude config

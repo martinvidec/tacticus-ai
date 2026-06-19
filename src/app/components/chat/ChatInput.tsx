@@ -17,7 +17,7 @@ export default function ChatInput({
   onStop,
   disabled = false,
   isStreaming = false,
-  placeholder = 'Anfrage an den Cogitator...',
+  placeholder = 'Query the Cogitator...',
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -77,7 +77,7 @@ export default function ChatInput({
           className="flex-shrink-0"
           icon={Send}
         >
-          Senden
+          Send
         </Button>
       )}
     </form>

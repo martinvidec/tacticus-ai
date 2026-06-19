@@ -25,7 +25,7 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
     setSuccess(false);
 
     if (!apiKey.trim()) {
-        setError('API Key darf nicht leer sein.');
+        setError('API key must not be empty.');
         setIsLoading(false);
         return;
     }
@@ -34,18 +34,18 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
     let idToken: string | undefined = undefined;
     try {
         if (!auth.currentUser) {
-            throw new Error("Nicht eingeloggt. Bitte Seite neu laden.");
+            throw new Error("Not logged in. Please reload the page.");
         }
         idToken = await auth.currentUser.getIdToken();
     } catch (tokenError: any) {
         console.error("Error getting ID token in ApiKeyInput:", tokenError);
-        setError(tokenError.message || "Fehler beim Abrufen des Authentifizierungs-Tokens.");
+        setError(tokenError.message || "Failed to retrieve authentication token.");
         setIsLoading(false);
         return;
     }
 
     if (!idToken) {
-        setError("Konnte Authentifizierungs-Token nicht abrufen.");
+        setError("Could not retrieve authentication token.");
         setIsLoading(false);
         return;
     }
@@ -63,11 +63,11 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
                onApiKeySaved();
            }, 1500); 
       } else {
-        setError(result.error || 'Ein unbekannter Fehler ist aufgetreten.');
+        setError(result.error || 'An unknown error occurred.');
       }
     } catch (err: any) {
       console.error('Error calling saveUserApiKey action:', err);
-      setError(err.message || 'Fehler beim Speichern des API Keys. Bitte versuche es erneut.');
+      setError(err.message || 'Failed to save the API key. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -77,11 +77,11 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
     <div className="flex justify-center items-center min-h-[calc(100vh-200px)] p-4">
       <Card className="max-w-md w-full bg-[rgb(var(--highlight-bg))] border border-[rgb(var(--border-color))]">
         <Title className="text-xl font-bold text-center mb-4 text-[rgb(var(--primary-color))] flex items-center justify-center">
-          <KeyRound className="mr-2" size={24} /> Tacticus API Key benötigt
+          <KeyRound className="mr-2" size={24} /> Tacticus API Key Required
         </Title>
         <p className="text-center text-sm mb-6 text-[rgb(var(--foreground-rgb),0.9)]">
-          Um deine Spieler- und Gildendaten abrufen zu können, benötigen wir deinen persönlichen Tacticus API Key. 
-          Du findest diesen in den Einstellungen der Tacticus Web App oder des Spiels (sofern verfügbar).
+          To retrieve your player and guild data, we need your personal Tacticus API key.
+          You can find it in the settings of the Tacticus web app or the game (where available).
         </p>
 
         {/* Custom Alert for Error */} 
@@ -95,19 +95,19 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
         {success && (
            <div className="mb-4 p-3 border border-teal-400 bg-teal-100 text-teal-700 rounded-lg flex items-center space-x-2">
              <CheckCircle className="text-teal-500 flex-shrink-0" size={20} />
-            <span className="text-sm">API Key erfolgreich gespeichert. Daten werden neu geladen...</span>
+            <span className="text-sm">API key saved successfully. Reloading data...</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="apiKey" className="block text-sm font-medium mb-1 text-[rgb(var(--foreground-rgb),0.9)]">
-              Dein Tacticus API Key
+              Your Tacticus API Key
             </label>
             <TextInput
               id="apiKey"
               type="text" 
-              placeholder="Gib hier deinen API Key ein"
+              placeholder="Enter your API key here"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               disabled={isLoading || success} 
@@ -120,7 +120,7 @@ export default function ApiKeyInput({ onApiKeySaved }: ApiKeyInputProps) {
             loading={isLoading}
             disabled={isLoading || success}
           >
-            {isLoading ? 'Speichern...' : 'API Key speichern'}
+            {isLoading ? 'Saving...' : 'Save API Key'}
           </Button>
         </form>
       </Card>

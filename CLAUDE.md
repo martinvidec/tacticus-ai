@@ -112,6 +112,14 @@ The UI must maintain a **Warhammer 40K aesthetic**:
 - Use thematic language in UI text: military/sci-fi terminology ("Armoury & Stores", "Combat Roster", "Cogitator Log", "For the Emperor!")
 - CSS variables for theme colors defined in `globals.css`
 
+## Language
+
+**The application UI is English.** All user-facing text — labels, buttons, placeholders, headings, error/success messages, and the Cogitator (Claude chat) system prompt and responses — must be written in English. Do not introduce German strings into the app, even though development notes and issue discussions may be in German.
+
+- UI components, API route error messages, and server action results: English only.
+- The Cogitator system prompt (`src/app/api/chat/route.ts`) instructs Claude to "Respond in English."
+- Thematic Warhammer 40K terminology (e.g. "machine spirit", "For the Emperor!") is encouraged, but always in English (see Theming).
+
 ## Environment Variables
 
 Public (client-side):

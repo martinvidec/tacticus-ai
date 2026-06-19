@@ -245,7 +245,7 @@ export default function CogitatorSection({
           <Bot className="w-16 h-16 text-gray-500 mb-4" />
           <Title className="text-[rgb(var(--primary-color))] mb-2">Cogitator Offline</Title>
           <Text className="text-center text-gray-400 mb-6 max-w-md">
-            ++ Maschinengeist nicht initialisiert. Claude API Key erforderlich. ++
+            ++ Machine spirit not initialized. Claude API key required. ++
           </Text>
           <Link href="/settings">
             <Button icon={Settings} className="bg-[rgb(var(--primary-color))] border-[rgb(var(--primary-color))]">
@@ -268,7 +268,7 @@ export default function CogitatorSection({
           </div>
           <div>
             <Title className="text-[rgb(var(--primary-color))] text-lg">Cogitator</Title>
-            <Text className="text-xs text-gray-500">Taktischer Beratungs-Maschinengeist</Text>
+            <Text className="text-xs text-gray-500">Tactical Advisory Machine Spirit</Text>
           </div>
         </div>
 
@@ -298,7 +298,7 @@ export default function CogitatorSection({
           <div className="flex-shrink-0 px-4 py-2 bg-[rgba(var(--primary-color),0.05)] border-b border-[rgb(var(--border-color))] flex items-center gap-2">
             <Info className="w-4 h-4 text-[rgb(var(--primary-color))]" />
             <Text className="text-xs text-[rgb(var(--primary-color))]">
-              Cogitator hat Zugriff auf deine aktuellen Spielerdaten
+              Cogitator has access to your current player data
             </Text>
           </div>
         )}
@@ -312,7 +312,7 @@ export default function CogitatorSection({
                 ++ Cogitator bereit. Awaiting transmission. ++
               </Text>
               <Text className="text-xs text-gray-500 max-w-md">
-                Stelle Fragen zu deinem Roster, Raid-Teams, Upgrade-Prioritäten oder Strategien.
+                Ask questions about your roster, raid teams, upgrade priorities, or strategies.
               </Text>
             </div>
           ) : (

@@ -20,36 +20,36 @@ interface ActionResult {
 export async function saveUserApiKey(apiKey: string, idToken: string | undefined): Promise<ActionResult> {
     // 1. Verify the ID token using Admin SDK
     if (!idToken) {
-        return { success: false, error: "Authentifizierungs-Token fehlt." };
+        return { success: false, error: "Authentication token is missing." };
     }
 
     let decodedToken;
     try {
         if (!adminAuth) {
              console.error('Admin Auth SDK not initialized in saveUserApiKey action.');
-             return { success: false, error: "Server-Konfigurationsfehler (Auth)." };
+             return { success: false, error: "Server configuration error (Auth)." };
         }
         decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch (error: any) {
         console.error("Error verifying ID token in saveUserApiKey action:", error);
-        return { success: false, error: "Ungültiges oder abgelaufenes Authentifizierungs-Token." };
+        return { success: false, error: "Invalid or expired authentication token." };
     }
 
     const uid = decodedToken.uid;
     if (!uid) {
          // Should not happen if verifyIdToken succeeds, but check anyway
-         return { success: false, error: "Benutzer-ID konnte nicht aus Token extrahiert werden." };
+         return { success: false, error: "Could not extract user ID from token." };
     }
 
     // 2. Validate the API Key itself
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-        return { success: false, error: "Ungültiger API Key übergeben." };
+        return { success: false, error: "Invalid API key provided." };
     }
 
     // 3. Ensure Firestore Admin SDK is initialized
     if (!adminDb) {
         console.error('Firestore Admin SDK not initialized in saveUserApiKey action.');
-        return { success: false, error: "Server-Konfigurationsfehler (DB)." };
+        return { success: false, error: "Server configuration error (DB)." };
     }
 
     try {
@@ -72,6 +72,6 @@ export async function saveUserApiKey(apiKey: string, idToken: string | undefined
 
     } catch (error: any) {
         console.error(`Error saving Tacticus API Key for user ${uid}:`, error);
-        return { success: false, error: error.message || "Fehler beim Speichern des API Keys in der Datenbank." };
+        return { success: false, error: error.message || "Failed to save the API key to the database." };
     }
 } 

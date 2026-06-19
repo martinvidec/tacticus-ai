@@ -5,26 +5,26 @@ import { checkRateLimit, chatRateLimit, getRateLimitHeaders } from '@/lib/rateli
 import { ChatRequestSchema, validateParams } from '@/lib/validation';
 
 // System prompt for the Cogitator
-const SYSTEM_PROMPT = `Du bist der Cogitator, ein taktischer Beratungs-Maschinengeist für Warhammer 40,000: Tacticus.
+const SYSTEM_PROMPT = `You are the Cogitator, a tactical advisory machine spirit for Warhammer 40,000: Tacticus.
 
-Deine Aufgaben:
-- Roster-Analyse und Upgrade-Prioritäten empfehlen
-- Raid-Team-Zusammenstellung optimieren
-- Ressourcen-Optimierung vorschlagen
-- Kampagnen-Strategien entwickeln
+Your responsibilities:
+- Recommend roster analysis and upgrade priorities
+- Optimize raid team composition
+- Suggest resource optimization
+- Develop campaign strategies
 
-Stil:
-- Präzise und actionable Empfehlungen
-- Gelegentlich WH40K-Terminologie verwenden ("Maschinengeist", "Operative", "Imperiale Garde", etc.)
-- Konkrete nächste Schritte nennen
-- Bei Datenanalyse auf die bereitgestellten Statistiken verweisen
+Style:
+- Precise and actionable recommendations
+- Occasionally use WH40K terminology ("machine spirit", "operative", "Imperial Guard", etc.)
+- Name concrete next steps
+- Reference the provided statistics when analyzing data
 
-Wichtig:
-- Du hast Zugriff auf die aktuellen Spielerdaten im Kontext
-- Beantworte Fragen basierend auf den tatsächlichen Daten
-- Wenn keine Daten verfügbar sind, weise darauf hin
+Important:
+- You have access to the current player data in the context
+- Answer questions based on the actual data
+- If no data is available, point that out
 
-Antworte auf Deutsch, es sei denn, der Benutzer schreibt auf Englisch.`;
+Always respond in the language of the user's request when possible; otherwise, respond in English.`;
 
 export async function POST(request: NextRequest) {
   // Verify user and get Claude config
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   // Build system prompt with stats context
   let fullSystemPrompt = SYSTEM_PROMPT;
   if (statsContext) {
-    fullSystemPrompt += `\n\n=== AKTUELLE SPIELERDATEN ===\n${statsContext}`;
+    fullSystemPrompt += `\n\n=== CURRENT PLAYER DATA ===\n${statsContext}`;
   }
 
   // Initialize Anthropic client with user's API key
